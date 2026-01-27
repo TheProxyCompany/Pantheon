@@ -1,0 +1,97 @@
+{# ------------------------------------------------------------------------ #}
+{# EXAMPLE CHAT TEMPLATE                                                   #}
+{# Copy this file to your model directory and customize as needed.         #}
+{# ------------------------------------------------------------------------ #}
+{# Available context variables (from control_tokens.json):                 #}
+{#   - begin_of_text, end_of_sequence, end_of_message                      #}
+{#   - start_image_token, end_image_token                                  #}
+{#   - thinking_start_token, thinking_end_token                            #}
+{#   - tool_calling.call_start, tool_calling.call_end, etc.                #}
+{#   - roles.system, roles.user, roles.agent, roles.tool                   #}
+{#                                                                         #}
+{# Available runtime variables:                                            #}
+{#   - interactions: list of {role, content} message dicts                 #}
+{#   - add_generation_prompt: whether to add assistant turn prefix         #}
+{#   - prefill: optional string to prefill assistant response              #}
+{#   - reasoning: whether to enable reasoning/thinking mode                #}
+{#   - task: optional task name for task-specific formatting               #}
+{#   - tools: list of tool schemas (when tool calling is enabled)          #}
+{# ------------------------------------------------------------------------ #}
+
+{%- set add_generation_prompt = add_generation_prompt or true -%}
+{%- set prefill = prefill or none -%}
+
+{# ------------------------------------------------------------------------ #}
+{# Macro: render_interaction                                                #}
+{# Renders a single message with role tags and content.                     #}
+{# ------------------------------------------------------------------------ #}
+{%- macro render_interaction(interaction) -%}
+    {%- set role = roles.get(interaction['role']) -%}
+    {%- if role is not none -%}
+        {{- role.role_start_tag + role.role_name + role.role_end_tag -}}
+    {%- endif -%}
+
+    {# Handle string content #}
+    {%- if interaction['content'] is string -%}
+        {{- interaction['content'] | safe -}}
+    {# Handle multimodal content (list of parts) #}
+    {%- else -%}
+        {%- for part in interaction['content'] -%}
+            {%- if part['type'] == 'text' -%}
+                {{- part['text'] | safe -}}
+            {%- elif part['type'] == 'image' -%}
+                {{- start_image_token }}{{ end_image_token -}}
+            {%- endif -%}
+        {%- endfor -%}
+    {%- endif -%}
+
+    {# Handle tool_calls in assistant messages #}
+    {%- if interaction['tool_calls'] is defined and interaction['tool_calls'] -%}
+        {%- if tool_calling.section_start -%}
+            {{- tool_calling.section_start -}}
+        {%- endif -%}
+        {%- for tool_call in interaction['tool_calls'] -%}
+            {{- tool_calling.call_start -}}
+            {{- tool_call['function']['name'] -}}
+            {%- if tool_calling.name_separator -%}
+                {{- tool_calling.name_separator -}}
+            {%- endif -%}
+            {{- tool_call['function']['arguments'] | tojson -}}
+            {{- tool_calling.call_end -}}
+        {%- endfor -%}
+        {%- if tool_calling.section_end -%}
+            {{- tool_calling.section_end -}}
+        {%- endif -%}
+    {%- endif -%}
+
+    {{- end_of_message -}}
+{%- endmacro -%}
+
+{# ------------------------------------------------------------------------ #}
+{# Main template                                                            #}
+{# ------------------------------------------------------------------------ #}
+{{ begin_of_text }}
+
+{# Render tool definitions if provided #}
+{%- if tools is defined and tools -%}
+    {# Model-specific tool rendering goes here #}
+{%- endif -%}
+
+{# Render all interactions #}
+{%- for interaction in interactions -%}
+    {{ render_interaction(interaction) }}
+{%- endfor -%}
+
+{# Add generation prompt for assistant turn #}
+{%- if add_generation_prompt -%}
+    {%- if reasoning and thinking_start_token -%}
+        {{- thinking_start_token -}}
+    {%- elif roles.agent is not none -%}
+        {{- roles.agent.role_start_tag + roles.agent.role_name + roles.agent.role_end_tag -}}
+    {%- endif -%}
+{%- endif -%}
+
+{# Optional prefill #}
+{%- if prefill is not none -%}
+    {{- prefill -}}
+{%- endif -%}

@@ -7,8 +7,15 @@
     "thinking_end_token": "",
     "start_image_token": "",
     "end_image_token": "",
-    "coord_placeholder": "<|coord|>",
+    "tool_calling": {
+        "call_start": "",
+        "call_end": "",
+        "section_start": "",
+        "section_end": "",
+        "name_separator": ""
+    },
     "capabilities": {
+        "coord_placeholder": "<|coord|>",
         "start_ground": "<|md_reserved_6|>",
         "end_ground": "<|md_reserved_8|>",
         "coord": "<|md_reserved_4|>"
