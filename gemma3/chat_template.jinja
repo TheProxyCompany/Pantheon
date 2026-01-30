@@ -23,7 +23,7 @@
     {%- else -%}
         {%- for content in interaction['content'] -%}
             {%- if content['type'] == 'image' -%}
-                {{ start_image_token }}{{ end_image_token }}
+                {{- capabilities.vision.tokens.start }}{{ capabilities.vision.tokens.end -}}
             {%- else -%}
                 {{- content | safe -}}
             {%- endif -%}

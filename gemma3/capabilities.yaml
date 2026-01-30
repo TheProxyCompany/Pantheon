@@ -1,0 +1,19 @@
+vision:
+  native: true
+  tokens:
+    start: "<start_of_image>"
+    end: "<end_of_image>"
+
+thinking:
+  native: false
+  tokens:
+    start: "```thinking\n"
+    end: "```\n"
+
+tool_calling:
+  native: false
+  formats:
+    - name: json
+      tokens:
+        start: "```json\n"
+        end: "```\n"

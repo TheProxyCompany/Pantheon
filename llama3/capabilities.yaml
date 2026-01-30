@@ -1,0 +1,17 @@
+thinking:
+  native: false
+  tokens:
+    start: "```thinking\n"
+    end: "```\n"
+
+tool_calling:
+  native: true
+  formats:
+    - name: json
+      tokens:
+        start: "```json\n"
+        end: "```\n"
+    - name: python
+      tokens:
+        start: "<|python_tag|>"
+        end: "<|eom_id|>"

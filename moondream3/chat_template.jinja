@@ -29,7 +29,7 @@
     {%- if interaction['content'] is not string -%}
         {%- for content in interaction['content'] -%}
             {%- if content['type'] == 'image' -%}
-                {{- "<|image|>" -}}
+                {{- capabilities.vision.placeholders.image -}}
             {%- endif -%}
         {%- endfor -%}
     {%- endif -%}
@@ -67,10 +67,10 @@
             {{- render_content(interaction) -}}
         {%- endfor -%}
         {{- roles.agent.role_start_tag -}}
-    {#- Detect gaze task: coordinate pair embedded inline via single <|coord|> placeholder -#}
+    {#- Detect gaze task: coordinate pair embedded inline via single coord placeholder -#}
     {#- C++ MoondreamCoordCapability takes 8-byte input (x,y) and produces 2 embedding tokens -#}
     {%- elif task == 'detect_gaze' -%}
-        {{- "\n\nPoint:<|coord|> gaze\n\n" -}}
+        {{- "\n\nPoint:" ~ capabilities.gaze_detection.placeholders.coord ~ " gaze\n\n" -}}
     {#- Unknown task, fall through to default query behavior -#}
     {%- else -%}
         {{- roles.user.role_start_tag ~ roles.user.role_name ~ roles.user.role_end_tag -}}
@@ -79,7 +79,7 @@
         {%- endfor -%}
         {%- if add_generation_prompt -%}
             {%- if reasoning is not none and reasoning -%}
-                {{- thinking_start_token -}}
+                {{- capabilities.thinking.tokens.start -}}
             {%- else -%}
                 {{- roles.agent.role_start_tag -}}
             {%- endif -%}
@@ -93,7 +93,7 @@
     {%- endfor -%}
     {%- if add_generation_prompt -%}
         {%- if reasoning is not none and reasoning -%}
-            {{- thinking_start_token -}}
+            {{- capabilities.thinking.tokens.start -}}
         {%- else -%}
             {{- roles.agent.role_start_tag -}}
         {%- endif -%}

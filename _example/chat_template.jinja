@@ -2,14 +2,17 @@
 {# EXAMPLE CHAT TEMPLATE                                                   #}
 {# Copy this file to your model directory and customize as needed.         #}
 {# ------------------------------------------------------------------------ #}
-{# Available context variables (from control_tokens.json):                 #}
+{# Available context variables:                                            #}
+{#                                                                         #}
+{# From control_tokens.json:                                               #}
 {#   - begin_of_text, end_of_sequence, end_of_message                      #}
-{#   - start_image_token, end_image_token                                  #}
-{#   - thinking_start_token, thinking_end_token                            #}
-{#   - tool_calling.call_start, tool_calling.call_end, etc.                #}
 {#   - roles.system, roles.user, roles.agent, roles.tool                   #}
 {#                                                                         #}
-{# Available runtime variables:                                            #}
+{# From capabilities.yaml:                                                 #}
+{#   - capabilities.<name>.tokens.<key>                                    #}
+{#   - capabilities.<name>.placeholders.<key>                              #}
+{#                                                                         #}
+{# Runtime variables:                                                      #}
 {#   - interactions: list of {role, content} message dicts                 #}
 {#   - add_generation_prompt: whether to add assistant turn prefix         #}
 {#   - prefill: optional string to prefill assistant response              #}
@@ -40,28 +43,9 @@
             {%- if part['type'] == 'text' -%}
                 {{- part['text'] | safe -}}
             {%- elif part['type'] == 'image' -%}
-                {{- start_image_token }}{{ end_image_token -}}
+                {{- capabilities.vision.tokens.start }}{{ capabilities.vision.tokens.end -}}
             {%- endif -%}
         {%- endfor -%}
-    {%- endif -%}
-
-    {# Handle tool_calls in assistant messages #}
-    {%- if interaction['tool_calls'] is defined and interaction['tool_calls'] -%}
-        {%- if tool_calling.section_start -%}
-            {{- tool_calling.section_start -}}
-        {%- endif -%}
-        {%- for tool_call in interaction['tool_calls'] -%}
-            {{- tool_calling.call_start -}}
-            {{- tool_call['function']['name'] -}}
-            {%- if tool_calling.name_separator -%}
-                {{- tool_calling.name_separator -}}
-            {%- endif -%}
-            {{- tool_call['function']['arguments'] | tojson -}}
-            {{- tool_calling.call_end -}}
-        {%- endfor -%}
-        {%- if tool_calling.section_end -%}
-            {{- tool_calling.section_end -}}
-        {%- endif -%}
     {%- endif -%}
 
     {{- end_of_message -}}
@@ -84,8 +68,8 @@
 
 {# Add generation prompt for assistant turn #}
 {%- if add_generation_prompt -%}
-    {%- if reasoning and thinking_start_token -%}
-        {{- thinking_start_token -}}
+    {%- if reasoning and capabilities.thinking is defined -%}
+        {{- capabilities.thinking.tokens.start -}}
     {%- elif roles.agent is not none -%}
         {{- roles.agent.role_start_tag + roles.agent.role_name + roles.agent.role_end_tag -}}
     {%- endif -%}

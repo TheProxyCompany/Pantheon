@@ -1,0 +1,32 @@
+# capabilities.yaml — reference template
+# Copy this file to your model directory and fill in the values.
+#
+# Each top-level key is a capability name. Fields:
+#   native: bool          — true if the model was trained on this capability
+#   tasks: [string]       — task names this capability handles
+#   formats: [object]     — output format variants (e.g. for tool calling)
+#   contains: [string]    — child capabilities that activate within this one
+#   tokens:               — special tokens used to delimit this capability
+#     key: string
+#   placeholders:         — template strings substituted during prompt assembly
+#     key: string
+
+vision:
+  native: true
+  tokens:
+    start: "<start_of_image>"
+    end: "<end_of_image>"
+
+thinking:
+  native: false
+  tokens:
+    start: "```thinking\n"
+    end: "```\n"
+
+tool_calling:
+  native: false
+  formats:
+    - name: json
+      tokens:
+        start: "```json\n"
+        end: "```\n"

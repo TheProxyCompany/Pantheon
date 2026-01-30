@@ -3,15 +3,6 @@
     "begin_of_text": "<bos>",
     "end_of_sequence": "<end_of_turn>\n",
     "end_of_message": "<end_of_turn>\n",
-    "start_image_token": "<start_of_image>",
-    "end_image_token": "<end_of_image>",
-    "tool_calling": {
-        "call_start": "",
-        "call_end": "",
-        "section_start": "",
-        "section_end": "",
-        "name_separator": ""
-    },
     "roles": {
         "system": {
             "role_name": "system",

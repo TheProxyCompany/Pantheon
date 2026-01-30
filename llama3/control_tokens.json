@@ -3,13 +3,6 @@
     "begin_of_text": "<|begin_of_text|>",
     "end_of_message": "<|eom_id|>",
     "end_of_sequence": "<|eot_id|>",
-    "tool_calling": {
-        "call_start": "",
-        "call_end": "",
-        "section_start": "",
-        "section_end": "",
-        "name_separator": ""
-    },
     "roles": {
         "agent": {
             "role_name": "assistant",

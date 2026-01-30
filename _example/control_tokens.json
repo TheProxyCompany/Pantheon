@@ -7,22 +7,6 @@
     "end_of_message": "<|eom|>",
     "end_of_sequence": "<|eos|>",
 
-    "start_image_token": "",
-    "end_image_token": "",
-
-    "thinking_start_token": "",
-    "thinking_end_token": "",
-
-    "capabilities": {},
-
-    "tool_calling": {
-        "call_start": "",
-        "call_end": "",
-        "section_start": "",
-        "section_end": "",
-        "name_separator": ""
-    },
-
     "roles": {
         "system": {
             "role_name": "system",

@@ -1,0 +1,52 @@
+vision:
+  native: true
+  placeholders:
+    image: "<|image|>"
+
+thinking:
+  native: true
+  tokens:
+    start: "<|md_reserved_3|>"
+    end: "<|md_reserved_2|>"
+  contains: [grounded_reasoning]
+
+grounded_reasoning:
+  native: true
+  tokens:
+    start: "<|md_reserved_6|>"
+    end: "<|md_reserved_8|>"
+
+pointing:
+  native: true
+  tasks: [point]
+  tokens:
+    coord: "<|md_reserved_4|>"
+  placeholders:
+    coord: "<|coord|>"
+
+detection:
+  native: true
+  tasks: [detect]
+  tokens:
+    coord: "<|md_reserved_4|>"
+    size: "<|md_reserved_5|>"
+
+gaze_detection:
+  native: true
+  tasks: [detect_gaze]
+  tokens:
+    coord: "<|md_reserved_4|>"
+  placeholders:
+    coord: "<|coord|>"
+
+captioning:
+  native: true
+  tasks: [caption_normal, caption_short, caption_long]
+
+tool_calling:
+  native: false
+  formats:
+    - name: json
+      tokens:
+        start: "```json\n"
+        end: "```\n"

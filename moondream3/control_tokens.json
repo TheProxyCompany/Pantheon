@@ -3,23 +3,6 @@
     "begin_of_text": "<|endoftext|>",
     "end_of_sequence": "<|endoftext|>",
     "end_of_message": "<|endoftext|>",
-    "thinking_start_token": "<|md_reserved_3|>",
-    "thinking_end_token": "",
-    "start_image_token": "",
-    "end_image_token": "",
-    "tool_calling": {
-        "call_start": "",
-        "call_end": "",
-        "section_start": "",
-        "section_end": "",
-        "name_separator": ""
-    },
-    "capabilities": {
-        "coord_placeholder": "<|coord|>",
-        "start_ground": "<|md_reserved_6|>",
-        "end_ground": "<|md_reserved_8|>",
-        "coord": "<|md_reserved_4|>"
-    },
     "roles": {
         "system": {
             "role_name": "",
