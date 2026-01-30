@@ -1,4 +1,4 @@
-# orchard-models
+# Pantheon
 
 Model profiles for [Orchard](https://github.com/TheProxyCompany): chat templates, control tokens, and capability declarations for LLM inference on Apple Silicon.
 
@@ -19,8 +19,8 @@ Control tokens are the atoms. Capabilities declare behaviors. The chat template 
 This repository is the single source of truth for model-specific formatting across all Orchard SDKs. Each SDK includes this repo as a git submodule:
 
 ```
-orchard-py/orchard/formatter/profiles/     → orchard-models
-orchard-rs/profiles/                        → orchard-models
+orchard-py/orchard/formatter/profiles/     → Pantheon
+orchard-rs/profiles/                        → Pantheon
 ```
 
 When you add a new model profile here, all SDKs gain support after updating their submodule.
