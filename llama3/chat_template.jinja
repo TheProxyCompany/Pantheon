@@ -1,23 +1,54 @@
 {# ------------------------------------------------------------------------ #}
 {# Template configuration                                                   #}
-{# Designed to accept model-specific control tokens                         #}
 {# ------------------------------------------------------------------------ #}
 {%- set add_generation_prompt = add_generation_prompt or true -%}
 {%- set prefill = prefill or none -%}
+{%- set tools = tools or none -%}
+
+{# Tool calling delimiters from capabilities.yaml #}
+{%- if capabilities is defined and capabilities.tool_calling is defined -%}
+    {%- set tc_tokens = capabilities.tool_calling.formats[0].tokens -%}
+{%- else -%}
+    {%- set tc_tokens = none -%}
+{%- endif -%}
+
+{# ------------------------------------------------------------------------ #}
+{# Macro: render_role_header                                                #}
+{# ------------------------------------------------------------------------ #}
+{%- macro render_role_header(role_key) -%}
+    {%- set role = roles.get(role_key) -%}
+    {%- if role is not none -%}
+        {{- role.role_start_tag + role.role_name + role.role_end_tag -}}
+    {%- endif -%}
+{%- endmacro -%}
 
 {# ------------------------------------------------------------------------ #}
 {# Macro: render_interaction                                                #}
 {# Renders individual interactions using model-specific control tokens.     #}
 {# ------------------------------------------------------------------------ #}
-{%- macro render_interaction(interaction) -%}
+{%- macro render_interaction(interaction, inject_tools) -%}
+    {{- render_role_header(interaction['role']) -}}
 
-    {# Get the role configuration (start/end tags, etc.) for this interaction #}
-    {%- set role = roles.get(interaction['role']) -%}
-    {%- if role is not none -%}
-        {{- role.role_start_tag + role.role_name + role.role_end_tag -}}
+    {%- if inject_tools and tools and tc_tokens -%}
+        {{- "You have the following tools:\n" -}}
+        {%- for t in tools -%}
+            {{- "\n---" + t.name + "---\n" -}}
+            {{- "Tool name: " + t.name + "\n" -}}
+            {%- if t.description is defined -%}
+                {{- 'Tool description: \n"""\n' + t.description + '\n"""\n' -}}
+            {%- endif -%}
+            {{- "Usage: \n" + t | tojson(indent=2) | trim -}}
+            {%- if loop.last -%}
+                {{ "\n\n---- End of tools ----\n" -}}
+            {%- else -%}
+                {{ "\n" -}}
+            {%- endif -%}
+        {%- endfor -%}
+        {{- "\nTo use a tool, invoke it by following the appropriate schema.\n" -}}
+        {{- "You must wrap your tool calls between the delimiters \"" + tc_tokens.start | trim + "\\n\" and \"\\n" + tc_tokens.end | trim + "\".\n" -}}
+        {{- "You must not include any other text or code in your tool calls.\n\n" -}}
     {%- endif -%}
 
-    {# Render the main content of the interaction                            #}
     {%- if interaction['content'] is string -%}
         {{- interaction['content'] | safe -}}
     {%- else -%}
@@ -26,28 +57,74 @@
         {%- endfor -%}
     {%- endif -%}
 
-    {# Add end token based on role configuration                             #}
-    {%- if role is not none and role.end_of_message is not none -%}
-        {{- role.end_of_message -}}
-    {%- else -%}
-        {{- end_of_sequence -}}
-    {%- endif -%}
-
+    {{- end_of_sequence -}}
 {%- endmacro -%}
 
 {# ------------------------------------------------------------------------ #}
-{# Main chat template structure                                             #}
-{# Iterates over interactions and assembles the complete chat prompt.       #}
-{# Ensures model-specific control tokens delimit the content appropriately. #}
+{# Macro: render_tool_call                                                  #}
+{# Renders an assistant turn containing a tool call in history.             #}
 {# ------------------------------------------------------------------------ #}
-{{ begin_of_text }}
-{%- for interaction in interactions -%}
-    {{ render_interaction(interaction) -}}
-{%- endfor -%}
-{%- if add_generation_prompt -%}
-    {%- if roles is not none and roles.agent is not none -%}
-        {{- roles.agent.role_start_tag + roles.agent.role_name + roles.agent.role_end_tag -}}
+{%- macro render_tool_call(interaction) -%}
+    {{- render_role_header('agent') -}}
+
+    {%- if interaction['content'] is string and interaction['content'] -%}
+        {{- interaction['content'] | safe + "\n" -}}
     {%- endif -%}
+
+    {%- if tc_tokens -%}
+        {%- for tool_call in interaction['tool_calls'] -%}
+            {{- tc_tokens.start -}}
+            {{- '{"name": "' + tool_call.function.name + '", "arguments": ' -}}
+            {{- tool_call.function.arguments | tojson | safe -}}
+            {{- "}\n" -}}
+            {{- tc_tokens.end -}}
+        {%- endfor -%}
+    {%- endif -%}
+
+    {{- end_of_message -}}
+{%- endmacro -%}
+
+{# ------------------------------------------------------------------------ #}
+{# Main template                                                            #}
+{# ------------------------------------------------------------------------ #}
+{{- begin_of_text -}}
+
+{# System turn — always present, adds ipython environment when tools are active #}
+{%- set has_system = interactions and interactions[0]['role'] == 'system' -%}
+{{- render_role_header('system') -}}
+{%- if tools and tc_tokens -%}
+    {{- "Environment: ipython\n" -}}
+{%- endif -%}
+{%- if has_system -%}
+    {%- if interactions[0]['content'] is string -%}
+        {{- interactions[0]['content'] | safe -}}
+    {%- else -%}
+        {%- for content in interactions[0]['content'] -%}
+            {{- content | safe -}}
+        {%- endfor -%}
+    {%- endif -%}
+{%- endif -%}
+{{- end_of_sequence -}}
+
+{# Render conversation — inject tool definitions into first user message #}
+{%- set ns = namespace(tool_injected=false) -%}
+{%- for interaction in interactions -%}
+    {%- if has_system and loop.first -%}
+        {# Already rendered system message above #}
+    {%- elif interaction.tool_calls is defined and interaction.tool_calls -%}
+        {{- render_tool_call(interaction) -}}
+    {%- else -%}
+        {%- set inject = (not ns.tool_injected) and interaction['role'] == 'user' and tools and tc_tokens -%}
+        {%- if inject -%}
+            {%- set ns.tool_injected = true -%}
+        {%- endif -%}
+        {{- render_interaction(interaction, inject) -}}
+    {%- endif -%}
+{%- endfor -%}
+
+{# Generation prompt #}
+{%- if add_generation_prompt -%}
+    {{- render_role_header('agent') -}}
 {%- endif -%}
 {%- if prefill is not none -%}
     {{- prefill -}}
