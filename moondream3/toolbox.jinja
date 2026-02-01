@@ -1,0 +1,24 @@
+{# ------------------------------------------------------------------------ #}
+{# Toolbox: renders tool definitions for the model's input context.        #}
+{# Receives `tools` (list of tool schema objects) and `capabilities`.      #}
+{# Output is plain text — no role headers or control tokens.               #}
+{# ------------------------------------------------------------------------ #}
+{%- if capabilities is defined and capabilities.tool_calling is defined -%}
+    {%- set tc_tokens = capabilities.tool_calling.formats[0].tokens -%}
+{%- else -%}
+    {%- set tc_tokens = none -%}
+{%- endif -%}
+
+{%- if tools and tc_tokens -%}
+Available tools:
+{%- for t in tools %}
+
+{{ t.name }}:
+{%- if t.description is defined %}
+  {{ t.description }}
+{%- endif %}
+  Schema: {{ t | tojson }}
+{%- endfor %}
+
+When calling a tool, output valid JSON wrapped in "{{ tc_tokens.start | trim }}" and "{{ tc_tokens.end | trim }}" delimiters.
+{%- endif -%}

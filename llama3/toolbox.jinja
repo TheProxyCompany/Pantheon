@@ -1,0 +1,35 @@
+{# ------------------------------------------------------------------------ #}
+{# Toolbox: renders tool definitions for the model's input context.        #}
+{# Receives `tools` (list of tool schema objects) and `capabilities`.      #}
+{# Output is plain text — no role headers or control tokens.               #}
+{# ------------------------------------------------------------------------ #}
+{%- if capabilities is defined and capabilities.tool_calling is defined -%}
+    {%- set tc_tokens = capabilities.tool_calling.formats[0].tokens -%}
+{%- else -%}
+    {%- set tc_tokens = none -%}
+{%- endif -%}
+
+{%- if tools and tc_tokens -%}
+Environment: ipython
+
+You have the following tools:
+{%- for t in tools %}
+
+---{{ t.name }}---
+Tool name: {{ t.name }}
+{%- if t.description is defined %}
+Tool description:
+"""
+{{ t.description }}
+"""
+{%- endif %}
+Usage:
+{{ t | tojson(indent=2) | trim }}
+{%- endfor %}
+
+---- End of tools ----
+
+To use a tool, invoke it by following the appropriate schema.
+You must wrap your tool calls between the delimiters "{{ tc_tokens.start | trim }}\n" and "\n{{ tc_tokens.end | trim }}".
+You must not include any other text or code in your tool calls.
+{%- endif -%}
