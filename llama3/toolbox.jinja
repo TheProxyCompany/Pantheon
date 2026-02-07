@@ -1,7 +1,9 @@
 {# ------------------------------------------------------------------------ #}
-{# Toolbox: renders tool definitions for the model's input context.        #}
-{# Receives `tools` (list of tool schema objects) and `capabilities`.      #}
-{# Output is plain text — no role headers or control tokens.               #}
+{# Toolbox: renders tool definitions as a self-contained context block.     #}
+{# ------------------------------------------------------------------------ #}
+
+{# ------------------------------------------------------------------------ #}
+{# Configuration                                                            #}
 {# ------------------------------------------------------------------------ #}
 {%- if capabilities is defined and capabilities.tool_calling is defined -%}
     {%- set tc_tokens = capabilities.tool_calling.formats[0].tokens -%}
@@ -9,27 +11,38 @@
     {%- set tc_tokens = none -%}
 {%- endif -%}
 
+{# ------------------------------------------------------------------------ #}
+{# Macro: render_role_header                                                #}
+{# ------------------------------------------------------------------------ #}
+{%- macro render_role_header(role_key) -%}
+    {%- set role = roles.get(role_key) -%}
+    {%- if role is not none -%}
+        {{- role.role_start_tag + role.role_name + role.role_end_tag -}}
+    {%- endif -%}
+{%- endmacro -%}
+
+{# ------------------------------------------------------------------------ #}
+{# Macro: render_tool                                                       #}
+{# Renders a single tool: name, description, parameter schema.             #}
+{# ------------------------------------------------------------------------ #}
+{%- macro render_tool(tool) -%}
+    {{- tool.name + ": " + tool.description | default("No description.") + "\n" -}}
+    {{- "Parameters:\n" + tool.properties.arguments | tojson(indent=2) | trim + "\n" }}
+{%- endmacro -%}
+
+{# ------------------------------------------------------------------------ #}
+{# Main template                                                            #}
+{# ------------------------------------------------------------------------ #}
 {%- if tools and tc_tokens -%}
-Environment: ipython
+    {{- begin_of_text -}}
+    {{- render_role_header("system") -}}
+    {{- "Environment: ipython\n" }}
 
-You have the following tools:
-{%- for t in tools %}
+    {{- "Tools:\n" }}
+    {%- for t in tools %}
+        {{- render_tool(t) -}}
+    {%- endfor %}
 
----{{ t.name }}---
-Tool name: {{ t.name }}
-{%- if t.description is defined %}
-Tool description:
-"""
-{{ t.description }}
-"""
-{%- endif %}
-Usage:
-{{ t | tojson(indent=2) | trim }}
-{%- endfor %}
-
----- End of tools ----
-
-To use a tool, invoke it by following the appropriate schema.
-You must wrap your tool calls between the delimiters "{{ tc_tokens.start | trim }}\n" and "\n{{ tc_tokens.end | trim }}".
-You must not include any other text or code in your tool calls.
+    {{- "To use a tool, invoke it by wrapping the appropriate schema in the delimiters " + tc_tokens.start | trim + " and " + tc_tokens.end | trim + ".\n" -}}
+    {{- end_of_sequence -}}
 {%- endif -%}
