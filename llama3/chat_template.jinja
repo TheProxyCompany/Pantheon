@@ -37,19 +37,6 @@
     {{- end_of_sequence -}}
 {%- endmacro -%}
 {# ------------------------------------------------------------------------ #}
-{# Macro: render_tool                                                       #}
-{# Renders a single tool: name, description, parameter schema.             #}
-{# ------------------------------------------------------------------------ #}
-{%- macro render_tool(tool) -%}
-    {{ "\n--- " + tool.name + " ---\n" }}
-    {{- "Name: " + tool.name + "\n" -}}
-    {%- if tool.description is defined -%}
-        {{- "Description: " + tool.description + "\n" -}}
-    {%- endif -%}
-    {{- "Parameters:\n" + tool.properties.arguments.properties | tojson(indent=2, ensure_ascii=False) | trim + "\n" }}
-    {{- "Required: " + tool.properties.arguments.required | join(", ") -}}
-{%- endmacro -%}
-{# ------------------------------------------------------------------------ #}
 {# Macro: render_tool_call                                                  #}
 {# Renders an assistant turn containing a tool call in history.             #}
 {# ------------------------------------------------------------------------ #}
@@ -63,9 +50,7 @@
     {%- if tc_tokens -%}
         {%- for tool_call in interaction['tool_calls'] -%}
             {{- tc_tokens.start -}}
-            {{- '{"name": "' + tool_call.function.name + '", "arguments": ' -}}
-            {{- tool_call.function.arguments | safe -}}
-            {{- "}\n" -}}
+            {{- tool_call.function | tojson(ensure_ascii=False) -}}
             {{- tc_tokens.end -}}
         {%- endfor -%}
     {%- endif -%}
@@ -81,6 +66,14 @@
 {%- set has_tools = tools is defined and tools and tc_tokens -%}
 {%- if has_system or has_tools -%}
     {{- render_role_header('system') -}}
+    {%- if has_tools -%}
+        {{- "Environment: ipython\nYou have the following tools available to you:\n" }}
+        {%- for t in tools -%}
+            {{- t | tojson(indent=2, ensure_ascii=False) -}}
+        {%- endfor -%}
+        {{- "\n\n" -}}
+        {{- "To invoke a tool, wrap the tool's json schema in the delimiters " + tc_tokens.start.replace('\n', '\\n') + " and " + tc_tokens.end.replace('\n', '\\n') + ".\n" -}}
+    {%- endif -%}
     {%- if has_system -%}
         {%- if interactions[0]['content'] is string -%}
             {{- interactions[0]['content'] | safe -}}
@@ -89,14 +82,6 @@
                 {{- content | safe -}}
             {%- endfor -%}
         {%- endif -%}
-    {%- endif -%}
-    {%- if has_tools -%}
-        {{- "\nEnvironment: ipython\n\nTools:" -}}
-        {%- for t in tools -%}
-            {{- render_tool(t) -}}
-        {%- endfor -%}
-        {{- "\n--- End of tools ---\n" -}}
-        {{- "To use a tool, invoke it by wrapping the appropriate schema in the delimiters " + tc_tokens.start.replace('\n', '\\n') + " and " + tc_tokens.end.replace('\n', '\\n') + ".\n" -}}
     {%- endif -%}
     {{- end_of_sequence -}}
 {%- endif -%}
