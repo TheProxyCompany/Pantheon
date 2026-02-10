@@ -10,7 +10,6 @@
 {%- else -%}
     {%- set tc_tokens = none -%}
 {%- endif -%}
-
 {# ------------------------------------------------------------------------ #}
 {# Macro: render_role_header                                                #}
 {# ------------------------------------------------------------------------ #}
@@ -20,7 +19,6 @@
         {{- role.role_start_tag + role.role_name + role.role_end_tag -}}
     {%- endif -%}
 {%- endmacro -%}
-
 {# ------------------------------------------------------------------------ #}
 {# Macro: render_interaction                                                #}
 {# Renders individual interactions using model-specific control tokens.     #}
@@ -38,7 +36,19 @@
 
     {{- end_of_sequence -}}
 {%- endmacro -%}
-
+{# ------------------------------------------------------------------------ #}
+{# Macro: render_tool                                                       #}
+{# Renders a single tool: name, description, parameter schema.             #}
+{# ------------------------------------------------------------------------ #}
+{%- macro render_tool(tool) -%}
+    {{ "\n--- " + tool.name + " ---\n" }}
+    {{- "Name: " + tool.name + "\n" -}}
+    {%- if tool.description is defined -%}
+        {{- "Description: " + tool.description + "\n" -}}
+    {%- endif -%}
+    {{- "Parameters:\n" + tool.properties.arguments.properties | tojson(indent=2, ensure_ascii=False) | trim + "\n" }}
+    {{- "Required: " + tool.properties.arguments.required | join(", ") -}}
+{%- endmacro -%}
 {# ------------------------------------------------------------------------ #}
 {# Macro: render_tool_call                                                  #}
 {# Renders an assistant turn containing a tool call in history.             #}
@@ -62,26 +72,34 @@
 
     {{- end_of_message -}}
 {%- endmacro -%}
-
 {# ------------------------------------------------------------------------ #}
 {# Main template                                                            #}
 {# ------------------------------------------------------------------------ #}
 {{- begin_of_text -}}
-
-{# System turn — only present if there is a system message #}
+{# System turn + tools — present if there is a system message or tools #}
 {%- set has_system = interactions and interactions[0]['role'] == 'system' -%}
-{%- if has_system -%}
+{%- set has_tools = tools is defined and tools and tc_tokens -%}
+{%- if has_system or has_tools -%}
     {{- render_role_header('system') -}}
-    {%- if interactions[0]['content'] is string -%}
-        {{- interactions[0]['content'] | safe -}}
-    {%- else -%}
-        {%- for content in interactions[0]['content'] -%}
-            {{- content | safe -}}
+    {%- if has_system -%}
+        {%- if interactions[0]['content'] is string -%}
+            {{- interactions[0]['content'] | safe -}}
+        {%- else -%}
+            {%- for content in interactions[0]['content'] -%}
+                {{- content | safe -}}
+            {%- endfor -%}
+        {%- endif -%}
+    {%- endif -%}
+    {%- if has_tools -%}
+        {{- "\nEnvironment: ipython\n\nTools:" -}}
+        {%- for t in tools -%}
+            {{- render_tool(t) -}}
         {%- endfor -%}
+        {{- "\n--- End of tools ---\n" -}}
+        {{- "To use a tool, invoke it by wrapping the appropriate schema in the delimiters " + tc_tokens.start.replace('\n', '\\n') + " and " + tc_tokens.end.replace('\n', '\\n') + ".\n" -}}
     {%- endif -%}
     {{- end_of_sequence -}}
 {%- endif -%}
-
 {# Render conversation #}
 {%- for interaction in interactions -%}
     {%- if has_system and loop.first -%}
@@ -92,7 +110,6 @@
         {{- render_interaction(interaction) -}}
     {%- endif -%}
 {%- endfor -%}
-
 {# Generation prompt #}
 {%- if add_generation_prompt -%}
     {{- render_role_header('agent') -}}

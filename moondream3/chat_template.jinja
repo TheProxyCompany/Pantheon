@@ -4,7 +4,36 @@
 {# ------------------------------------------------------------------------ #}
 {%- set add_generation_prompt = add_generation_prompt or true -%}
 {%- set prefill = prefill or none -%}
-
+{# Tool calling delimiters from capabilities.yaml #}
+{%- if capabilities is defined and capabilities.tool_calling is defined -%}
+    {%- set tc_tokens = capabilities.tool_calling.formats[0].tokens -%}
+{%- else -%}
+    {%- set tc_tokens = none -%}
+{%- endif -%}
+{# ------------------------------------------------------------------------ #}
+{# Macro: render_tool                                                       #}
+{# Renders a single tool definition as plain text.                         #}
+{# ------------------------------------------------------------------------ #}
+{%- macro render_tool(tool) -%}
+    {{ "\n" + tool.name + ":" }}
+    {%- if tool.description is defined %}
+        {{ tool.description }}
+    {%- endif %}
+    Schema: {{ tool | tojson }}
+{%- endmacro -%}
+{# ------------------------------------------------------------------------ #}
+{# Macro: render_tools_block                                                #}
+{# Renders the full tools block if tools are available.                    #}
+{# ------------------------------------------------------------------------ #}
+{%- macro render_tools_block() -%}
+    {%- if tools is defined and tools and tc_tokens -%}
+        {{- "\nAvailable tools:" -}}
+        {%- for t in tools -%}
+            {{- render_tool(t) -}}
+        {%- endfor -%}
+        {{- "\n\nWhen calling a tool, output valid JSON wrapped in \"" + tc_tokens.start | trim + "\" and \"" + tc_tokens.end | trim + "\" delimiters." -}}
+    {%- endif -%}
+{%- endmacro -%}
 {# ------------------------------------------------------------------------ #}
 {# Macro: render_content                                                    #}
 {# Renders the content parts of an interaction (text only, no images)       #}
@@ -20,7 +49,6 @@
         {%- endfor -%}
     {%- endif -%}
 {%- endmacro -%}
-
 {# ------------------------------------------------------------------------ #}
 {# Macro: render_images                                                     #}
 {# Renders image placeholders for an interaction                            #}
@@ -34,17 +62,14 @@
         {%- endfor -%}
     {%- endif -%}
 {%- endmacro -%}
-
 {# ------------------------------------------------------------------------ #}
 {# Task-specific templates for Moondream3                                   #}
 {# ------------------------------------------------------------------------ #}
 {{ begin_of_text }}
-
 {#- Render images first (they come before the task prompt) -#}
 {%- for interaction in interactions -%}
     {{- render_images(interaction) -}}
 {%- endfor -%}
-
 {%- if task is defined and task is not none -%}
     {#- Caption tasks: describe<sep>{length}<answer> -#}
     {%- if task == 'caption_short' -%}
@@ -74,6 +99,7 @@
     {#- Unknown task, fall through to default query behavior -#}
     {%- else -%}
         {{- roles.user.role_start_tag ~ roles.user.role_name ~ roles.user.role_end_tag -}}
+        {{- render_tools_block() -}}
         {%- for interaction in interactions -%}
             {{- render_content(interaction) -}}
         {%- endfor -%}
@@ -88,6 +114,7 @@
 {%- else -%}
     {#- Default query behavior -#}
     {{- roles.user.role_start_tag ~ roles.user.role_name ~ roles.user.role_end_tag -}}
+    {{- render_tools_block() -}}
     {%- for interaction in interactions -%}
         {{- render_content(interaction) -}}
     {%- endfor -%}

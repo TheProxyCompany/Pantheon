@@ -4,7 +4,12 @@
 {# ------------------------------------------------------------------------ #}
 {%- set add_generation_prompt = add_generation_prompt or true -%}
 {%- set prefill = prefill or none -%}
-
+{# Tool calling delimiters from capabilities.yaml #}
+{%- if capabilities is defined and capabilities.tool_calling is defined -%}
+    {%- set tc_tokens = capabilities.tool_calling.formats[0].tokens -%}
+{%- else -%}
+    {%- set tc_tokens = none -%}
+{%- endif -%}
 {# ------------------------------------------------------------------------ #}
 {# Macro: render_interaction                                                #}
 {# Renders individual interactions using model-specific control tokens.     #}
@@ -35,15 +40,65 @@
         {{ end_of_sequence }}
     {%- endif -%}
 {%- endmacro -%}
-
+{# ------------------------------------------------------------------------ #}
+{# Macro: render_tool                                                       #}
+{# Renders a single tool definition as plain text.                         #}
+{# ------------------------------------------------------------------------ #}
+{%- macro render_tool(tool) -%}
+    {{ "\n" + tool.name + ":" }}
+    {%- if tool.description is defined %}
+        {{ tool.description }}
+    {%- endif %}
+    Schema: {{ tool | tojson }}
+{%- endmacro -%}
 {# ------------------------------------------------------------------------ #}
 {# Main chat template structure                                             #}
 {# Iterates over interactions and assembles the complete chat prompt.       #}
 {# Ensures model-specific control tokens delimit the content appropriately. #}
 {# ------------------------------------------------------------------------ #}
 {{ begin_of_text }}
+{# System turn + tools — present if there is a system message or tools #}
+{%- set has_system = interactions and interactions[0]['role'] == 'system' -%}
+{%- set has_tools = tools is defined and tools and tc_tokens -%}
+{%- if has_system or has_tools -%}
+    {%- set role = roles.get('system') -%}
+    {%- if role is not none -%}
+        {{- role.role_start_tag + role.role_name + role.role_end_tag -}}
+    {%- endif -%}
+    {%- if has_system -%}
+        {%- if interactions[0]['content'] is string -%}
+            {{- interactions[0]['content'] | safe -}}
+        {%- else -%}
+            {%- for content in interactions[0]['content'] -%}
+                {%- if content['type'] == 'image' -%}
+                    {{- capabilities.vision.tokens.start }}{{ capabilities.vision.tokens.end -}}
+                {%- else -%}
+                    {{- content | safe -}}
+                {%- endif -%}
+            {%- endfor -%}
+        {%- endif -%}
+    {%- endif -%}
+    {%- if has_tools -%}
+        {{- "\nAvailable tools:" -}}
+        {%- for t in tools -%}
+            {{- render_tool(t) -}}
+        {%- endfor -%}
+        {{- "\n\nWhen calling a tool, output valid JSON wrapped in \"" + tc_tokens.start | trim + "\" and \"" + tc_tokens.end | trim + "\" delimiters." -}}
+    {%- endif -%}
+    {%- if end_of_message is not none -%}
+        {{ end_of_message }}
+    {%- else -%}
+        {{ end_of_sequence }}
+    {%- endif -%}
+{%- endif -%}
+
+{# Render conversation #}
 {%- for interaction in interactions -%}
-    {{ render_interaction(interaction) -}}
+    {%- if has_system and loop.first -%}
+        {# Already rendered system message above #}
+    {%- else -%}
+        {{ render_interaction(interaction) -}}
+    {%- endif -%}
 {%- endfor -%}
 {%- if add_generation_prompt -%}
     {%- if roles is not none and roles.agent is not none -%}
