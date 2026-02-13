@@ -2,7 +2,7 @@ thinking:
   native: false
   tokens:
     start: "```thinking\n"
-    end: "```\n"
+    end: "\n```"
 
 tool_calling:
   native: true
@@ -10,7 +10,7 @@ tool_calling:
     - name: json
       tokens:
         start: "```json\n"
-        end: "```\n"
+        end: "\n```"
     - name: python
       tokens:
         start: "<|python_tag|>"
