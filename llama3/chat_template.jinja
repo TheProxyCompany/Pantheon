@@ -72,7 +72,7 @@
             {{- t | tojson(indent=2, ensure_ascii=False) -}}
         {%- endfor -%}
         {{- "\n\n" -}}
-        {{- "To invoke a tool, wrap the tool's json schema in the delimiters " + tc_tokens.start.replace('\n', '\\n') + " and " + tc_tokens.end.replace('\n', '\\n') + ".\n" -}}
+        {{- "To invoke a tool, wrap the tool's json schema in the delimiters " + tc_tokens.start + " and " + tc_tokens.end + ".\n" -}}
     {%- endif -%}
     {%- if has_system -%}
         {%- if interactions[0]['content'] is string -%}
