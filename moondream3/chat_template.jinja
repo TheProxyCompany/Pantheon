@@ -10,28 +10,29 @@
 {%- else -%}
     {%- set tc_tokens = none -%}
 {%- endif -%}
+{%- import "tool_macros.jinja" as tool_macros -%}
 {# ------------------------------------------------------------------------ #}
-{# Macro: render_tool                                                       #}
-{# Renders a single tool definition as plain text.                         #}
+{# Macro: render_role_header                                                #}
 {# ------------------------------------------------------------------------ #}
-{%- macro render_tool(tool) -%}
-    {{ "\n" + tool.name + ":" }}
-    {%- if tool.description is defined %}
-        {{ tool.description }}
-    {%- endif %}
-    Schema: {{ tool | tojson }}
+{%- macro render_role_header(role_key) -%}
+    {%- set role = roles.get(role_key) -%}
+    {%- if role is not none -%}
+        {{- role.role_start_tag + role.role_name + role.role_end_tag -}}
+    {%- endif -%}
 {%- endmacro -%}
 {# ------------------------------------------------------------------------ #}
 {# Macro: render_tools_block                                                #}
-{# Renders the full tools block if tools are available.                    #}
+{# Renders the full tools block if tools are available.                     #}
 {# ------------------------------------------------------------------------ #}
 {%- macro render_tools_block() -%}
     {%- if tools is defined and tools and tc_tokens -%}
         {{- "\nAvailable tools:" -}}
         {%- for t in tools -%}
-            {{- render_tool(t) -}}
+            {{- "\n" if loop.first else "\n\n" -}}
+            {{- tool_macros.render_tool(t) -}}
         {%- endfor -%}
-        {{- "\n\nWhen calling a tool, output valid JSON wrapped in \"" + tc_tokens.start | trim + "\" and \"" + tc_tokens.end | trim + "\" delimiters." -}}
+        {{- "\n\nWhen you need a tool, respond with exactly one Python-style function call using keyword arguments inside \"" + tc_tokens.start | trim + "\" and \"" + tc_tokens.end | trim + "\"." -}}
+        {{- "\nUse double quotes for strings, True or False for booleans, and None for null values." -}}
     {%- endif -%}
 {%- endmacro -%}
 {# ------------------------------------------------------------------------ #}
@@ -50,11 +51,48 @@
     {%- endif -%}
 {%- endmacro -%}
 {# ------------------------------------------------------------------------ #}
+{# Macro: render_tool_call                                                  #}
+{# ------------------------------------------------------------------------ #}
+{%- macro render_tool_call(interaction) -%}
+    {{- render_role_header('agent') -}}
+    {%- if interaction['content'] is string and interaction['content'] -%}
+        {{- interaction['content'] | safe + "\n" -}}
+    {%- endif -%}
+    {%- if tc_tokens -%}
+        {%- for tool_call in interaction['tool_calls'] -%}
+            {{- tc_tokens.start -}}
+            {{- tool_macros.render_python_call(tool_call) -}}
+            {{- tc_tokens.end -}}
+        {%- endfor -%}
+    {%- endif -%}
+    {{- end_of_message -}}
+{%- endmacro -%}
+{# ------------------------------------------------------------------------ #}
+{# Macro: render_tool_result                                                #}
+{# ------------------------------------------------------------------------ #}
+{%- macro render_tool_result(interaction) -%}
+    {{- render_role_header('tool') -}}
+    {{- render_content(interaction) -}}
+    {{- end_of_message -}}
+{%- endmacro -%}
+{# ------------------------------------------------------------------------ #}
+{# Macro: render_query_interaction                                          #}
+{# ------------------------------------------------------------------------ #}
+{%- macro render_query_interaction(interaction) -%}
+    {%- if interaction.tool_calls is defined and interaction.tool_calls -%}
+        {{- render_tool_call(interaction) -}}
+    {%- elif interaction['role'] == 'tool' or (interaction.tool_call_id is defined and interaction.tool_call_id) -%}
+        {{- render_tool_result(interaction) -}}
+    {%- else -%}
+        {{- render_content(interaction) -}}
+    {%- endif -%}
+{%- endmacro -%}
+{# ------------------------------------------------------------------------ #}
 {# Macro: render_images                                                     #}
 {# Renders image placeholders for an interaction                            #}
 {# ------------------------------------------------------------------------ #}
 {%- macro render_images(interaction) -%}
-    {%- if interaction['content'] is not string -%}
+    {%- if interaction['content'] is sequence and interaction['content'] is not string -%}
         {%- for content in interaction['content'] -%}
             {%- if content['type'] == 'image' -%}
                 {{- capabilities.vision.placeholders.image -}}
@@ -101,7 +139,7 @@
         {{- roles.user.role_start_tag ~ roles.user.role_name ~ roles.user.role_end_tag -}}
         {{- render_tools_block() -}}
         {%- for interaction in interactions -%}
-            {{- render_content(interaction) -}}
+            {{- render_query_interaction(interaction) -}}
         {%- endfor -%}
         {%- if add_generation_prompt -%}
             {%- if reasoning is not none and reasoning -%}
@@ -116,7 +154,7 @@
     {{- roles.user.role_start_tag ~ roles.user.role_name ~ roles.user.role_end_tag -}}
     {{- render_tools_block() -}}
     {%- for interaction in interactions -%}
-        {{- render_content(interaction) -}}
+        {{- render_query_interaction(interaction) -}}
     {%- endfor -%}
     {%- if add_generation_prompt -%}
         {%- if reasoning is not none and reasoning -%}

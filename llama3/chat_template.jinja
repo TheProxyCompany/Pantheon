@@ -10,6 +10,7 @@
 {%- else -%}
     {%- set tc_tokens = none -%}
 {%- endif -%}
+{%- import "tool_macros.jinja" as tool_macros -%}
 {# ------------------------------------------------------------------------ #}
 {# Macro: render_role_header                                                #}
 {# ------------------------------------------------------------------------ #}
@@ -20,20 +21,24 @@
     {%- endif -%}
 {%- endmacro -%}
 {# ------------------------------------------------------------------------ #}
+{# Macro: render_content                                                    #}
+{# ------------------------------------------------------------------------ #}
+{%- macro render_content(content) -%}
+    {%- if content is string -%}
+        {{- content | safe -}}
+    {%- else -%}
+        {%- for item in content -%}
+            {{- item | safe -}}
+        {%- endfor -%}
+    {%- endif -%}
+{%- endmacro -%}
+{# ------------------------------------------------------------------------ #}
 {# Macro: render_interaction                                                #}
 {# Renders individual interactions using model-specific control tokens.     #}
 {# ------------------------------------------------------------------------ #}
 {%- macro render_interaction(interaction) -%}
     {{- render_role_header(interaction['role']) -}}
-
-    {%- if interaction['content'] is string -%}
-        {{- interaction['content'] | safe -}}
-    {%- else -%}
-        {%- for content in interaction['content'] -%}
-            {{- content | safe -}}
-        {%- endfor -%}
-    {%- endif -%}
-
+    {{- render_content(interaction['content']) -}}
     {{- end_of_sequence -}}
 {%- endmacro -%}
 {# ------------------------------------------------------------------------ #}
@@ -50,7 +55,7 @@
     {%- if tc_tokens -%}
         {%- for tool_call in interaction['tool_calls'] -%}
             {{- tc_tokens.start -}}
-            {{- tool_call.function | tojson(ensure_ascii=False) -}}
+            {{- tool_macros.render_python_call(tool_call) -}}
             {{- tc_tokens.end -}}
         {%- endfor -%}
     {%- endif -%}
@@ -58,10 +63,18 @@
     {{- end_of_message -}}
 {%- endmacro -%}
 {# ------------------------------------------------------------------------ #}
+{# Macro: render_tool_result                                                #}
+{# ------------------------------------------------------------------------ #}
+{%- macro render_tool_result(interaction) -%}
+    {{- render_role_header('tool') -}}
+    {{- render_content(interaction['content']) -}}
+    {{- end_of_sequence -}}
+{%- endmacro -%}
+{# ------------------------------------------------------------------------ #}
 {# Main template                                                            #}
 {# ------------------------------------------------------------------------ #}
 {{- begin_of_text -}}
-{# System turn + tools — present if there is a system message or tools #}
+{# System turn + tools - present if there is a system message or tools #}
 {%- set has_system = interactions and interactions[0]['role'] == 'system' -%}
 {%- set has_tools = tools is defined and tools and tc_tokens -%}
 {%- if has_system or has_tools -%}
@@ -69,19 +82,15 @@
     {%- if has_tools -%}
         {{- "Environment: ipython\nYou have the following tools available to you:\n" }}
         {%- for t in tools -%}
-            {{- t | tojson(indent=2, ensure_ascii=False) -}}
+            {{- "\n" if loop.first else "\n\n" -}}
+            {{- tool_macros.render_tool(t) -}}
         {%- endfor -%}
         {{- "\n\n" -}}
-        {{- "To invoke a tool, wrap the tool's json schema in the delimiters " + tc_tokens.start + " and " + tc_tokens.end + ".\n" -}}
+        {{- "To invoke a tool, emit exactly one Python-style function call using keyword arguments inside the delimiters " + tc_tokens.start + " and " + tc_tokens.end + ".\n" -}}
+        {{- "Use double quotes for strings, True or False for booleans, and None for null values.\n" -}}
     {%- endif -%}
     {%- if has_system -%}
-        {%- if interactions[0]['content'] is string -%}
-            {{- interactions[0]['content'] | safe -}}
-        {%- else -%}
-            {%- for content in interactions[0]['content'] -%}
-                {{- content | safe -}}
-            {%- endfor -%}
-        {%- endif -%}
+        {{- render_content(interactions[0]['content']) -}}
     {%- endif -%}
     {{- end_of_sequence -}}
 {%- endif -%}
@@ -91,6 +100,8 @@
         {# Already rendered system message above #}
     {%- elif interaction.tool_calls is defined and interaction.tool_calls -%}
         {{- render_tool_call(interaction) -}}
+    {%- elif interaction['role'] == 'tool' or (interaction.tool_call_id is defined and interaction.tool_call_id) -%}
+        {{- render_tool_result(interaction) -}}
     {%- else -%}
         {{- render_interaction(interaction) -}}
     {%- endif -%}

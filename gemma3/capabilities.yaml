@@ -11,9 +11,12 @@ thinking:
     end: "\n```"
 
 tool_calling:
-  native: false
+  native: true
   formats:
-    - name: json
+    - name: pythonic
       tokens:
-        start: "```json\n"
+        start: "```tool_code\n"
         end: "\n```"
+  result_tokens:
+    start: "```tool_output\n"
+    end: "\n```"

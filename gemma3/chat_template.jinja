@@ -7,31 +7,63 @@
 {# Tool calling delimiters from capabilities.yaml #}
 {%- if capabilities is defined and capabilities.tool_calling is defined -%}
     {%- set tc_tokens = capabilities.tool_calling.formats[0].tokens -%}
+    {%- set result_tokens = capabilities.tool_calling.result_tokens -%}
 {%- else -%}
     {%- set tc_tokens = none -%}
+    {%- set result_tokens = none -%}
 {%- endif -%}
+{%- import "tool_macros.jinja" as tool_macros -%}
+{# ------------------------------------------------------------------------ #}
+{# Macro: render_role_header                                                #}
+{# ------------------------------------------------------------------------ #}
+{%- macro render_role_header(role_key) -%}
+    {%- set role = roles.get(role_key) -%}
+    {%- if role is not none -%}
+        {{- role.role_start_tag + role.role_name + role.role_end_tag -}}
+    {%- endif -%}
+{%- endmacro -%}
+{# ------------------------------------------------------------------------ #}
+{# Macro: render_content                                                    #}
+{# ------------------------------------------------------------------------ #}
+{%- macro render_content(content) -%}
+    {%- if content is string -%}
+        {{- content | safe -}}
+    {%- else -%}
+        {%- for item in content -%}
+            {%- if item['type'] == 'image' -%}
+                {{- capabilities.vision.tokens.start }}{{ capabilities.vision.tokens.end -}}
+            {%- else -%}
+                {{- item | safe -}}
+            {%- endif -%}
+        {%- endfor -%}
+    {%- endif -%}
+{%- endmacro -%}
 {# ------------------------------------------------------------------------ #}
 {# Macro: render_interaction                                                #}
 {# Renders individual interactions using model-specific control tokens.     #}
 {# ------------------------------------------------------------------------ #}
 {%- macro render_interaction(interaction) -%}
-
-    {# Get the role configuration (start/end tags, etc.) for this interaction #}
-    {%- set role = roles.get(interaction['role']) -%}
-    {%- if role is not none -%}
-        {{- role.role_start_tag + role.role_name + role.role_end_tag -}}
-    {%- endif -%}
-
-    {# Render the main content of the interaction                            #}
-    {%- if interaction['content'] is string -%}
-        {{- interaction['content'] | safe -}}
+    {{- render_role_header(interaction['role']) -}}
+    {{- render_content(interaction['content']) -}}
+    {%- if end_of_message is not none -%}
+        {{ end_of_message }}
     {%- else -%}
-        {%- for content in interaction['content'] -%}
-            {%- if content['type'] == 'image' -%}
-                {{- capabilities.vision.tokens.start }}{{ capabilities.vision.tokens.end -}}
-            {%- else -%}
-                {{- content | safe -}}
-            {%- endif -%}
+        {{ end_of_sequence }}
+    {%- endif -%}
+{%- endmacro -%}
+{# ------------------------------------------------------------------------ #}
+{# Macro: render_tool_call                                                  #}
+{# ------------------------------------------------------------------------ #}
+{%- macro render_tool_call(interaction) -%}
+    {{- render_role_header('agent') -}}
+    {%- if interaction['content'] is string and interaction['content'] -%}
+        {{- interaction['content'] | safe + "\n" -}}
+    {%- endif %}
+    {%- if tc_tokens -%}
+        {%- for tool_call in interaction['tool_calls'] -%}
+            {{- tc_tokens.start -}}
+            {{- tool_macros.render_python_call(tool_call) -}}
+            {{- tc_tokens.end -}}
         {%- endfor -%}
     {%- endif -%}
     {%- if end_of_message is not none -%}
@@ -41,15 +73,22 @@
     {%- endif -%}
 {%- endmacro -%}
 {# ------------------------------------------------------------------------ #}
-{# Macro: render_tool                                                       #}
-{# Renders a single tool definition as plain text.                         #}
+{# Macro: render_tool_result                                                #}
 {# ------------------------------------------------------------------------ #}
-{%- macro render_tool(tool) -%}
-    {{ "\n" + tool.name + ":" }}
-    {%- if tool.description is defined %}
-        {{ tool.description }}
-    {%- endif %}
-    Schema: {{ tool | tojson }}
+{%- macro render_tool_result(interaction) -%}
+    {{- render_role_header('user') -}}
+    {%- if result_tokens -%}
+        {{- result_tokens.start -}}
+        {{- render_content(interaction['content']) -}}
+        {{- result_tokens.end -}}
+    {%- else -%}
+        {{- render_content(interaction['content']) -}}
+    {%- endif -%}
+    {%- if end_of_message is not none -%}
+        {{ end_of_message }}
+    {%- else -%}
+        {{ end_of_sequence }}
+    {%- endif -%}
 {%- endmacro -%}
 {# ------------------------------------------------------------------------ #}
 {# Main chat template structure                                             #}
@@ -57,7 +96,7 @@
 {# Ensures model-specific control tokens delimit the content appropriately. #}
 {# ------------------------------------------------------------------------ #}
 {{ begin_of_text }}
-{# System turn + tools — present if there is a system message or tools #}
+{# System turn + tools - present if there is a system message or tools #}
 {%- set has_system = interactions and interactions[0]['role'] == 'system' -%}
 {%- set has_tools = tools is defined and tools and tc_tokens -%}
 {%- if has_system or has_tools -%}
@@ -79,11 +118,16 @@
         {%- endif -%}
     {%- endif -%}
     {%- if has_tools -%}
-        {{- "\nAvailable tools:" -}}
+        {{- "\nYou have access to the following tools:\n" -}}
         {%- for t in tools -%}
-            {{- render_tool(t) -}}
+            {{- "\n" if loop.first else "\n\n" -}}
+            {{- tool_macros.render_tool(t) -}}
         {%- endfor -%}
-        {{- "\n\nWhen calling a tool, output valid JSON wrapped in \"" + tc_tokens.start | trim + "\" and \"" + tc_tokens.end | trim + "\" delimiters." -}}
+        {{- "\n\nWhen you need a tool, respond with exactly one Python-style function call inside a " + tc_tokens.start | trim + " block and close it with " + tc_tokens.end | trim + "." -}}
+        {%- if result_tokens -%}
+            {{- "\nTool results will come back in user messages wrapped in " + result_tokens.start | trim + " and " + result_tokens.end | trim + "." -}}
+        {%- endif -%}
+        {{- "\nUse keyword arguments that match the tool signature exactly. Quote strings with double quotes. Render booleans as True or False and null values as None." -}}
     {%- endif -%}
     {%- if end_of_message is not none -%}
         {{ end_of_message }}
@@ -96,6 +140,10 @@
 {%- for interaction in interactions -%}
     {%- if has_system and loop.first -%}
         {# Already rendered system message above #}
+    {%- elif interaction.tool_calls is defined and interaction.tool_calls -%}
+        {{- render_tool_call(interaction) -}}
+    {%- elif interaction['role'] == 'tool' or (interaction.tool_call_id is defined and interaction.tool_call_id) -%}
+        {{- render_tool_result(interaction) -}}
     {%- else -%}
         {{ render_interaction(interaction) -}}
     {%- endif -%}

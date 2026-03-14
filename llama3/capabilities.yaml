@@ -7,11 +7,11 @@ thinking:
 tool_calling:
   native: true
   formats:
+    - name: pythonic
+      tokens:
+        start: "<|python_tag|>"
+        end: "<|eom_id|>"
     - name: json
       tokens:
         start: "```json\n"
         end: "\n```"
-    - name: python
-      tokens:
-        start: "<|python_tag|>"
-        end: "<|eom_id|>"

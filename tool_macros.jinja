@@ -1,0 +1,115 @@
+{%- macro render_python_value(value) -%}
+    {%- if value is sameas true -%}
+        True
+    {%- elif value is sameas false -%}
+        False
+    {%- elif value is none -%}
+        None
+    {%- elif value is number -%}
+        {{- value -}}
+    {%- elif value is string -%}
+        {{- value | tojson(ensure_ascii=False) -}}
+    {%- elif value is mapping -%}
+        { {%- for key, item in value.items() -%}
+            {%- if not loop.first -%}, {% endif -%}
+            {{ key | tojson(ensure_ascii=False) }}: {{ render_python_value(item) }}
+        {%- endfor -%} }
+    {%- elif value is sequence -%}
+        [ {%- for item in value -%}
+            {%- if not loop.first -%}, {% endif -%}
+            {{- render_python_value(item) -}}
+        {%- endfor -%} ]
+    {%- else -%}
+        {{- value | tojson(ensure_ascii=False) -}}
+    {%- endif -%}
+{%- endmacro -%}
+
+{%- macro render_python_call(tool_call) -%}
+    {%- set function = tool_call.function -%}
+    {{- function.name -}}(
+    {%- if function.arguments is mapping -%}
+        {%- for key, value in function.arguments.items() -%}
+            {%- if not loop.first -%}, {% endif -%}
+            {{- key -}}={{- render_python_value(value) -}}
+        {%- endfor -%}
+    {%- endif -%}
+    )
+{%- endmacro -%}
+
+{%- macro render_python_type(schema) -%}
+    {%- if schema.enum is defined and schema.enum -%}
+        str
+    {%- elif schema.type == 'string' -%}
+        str
+    {%- elif schema.type == 'integer' -%}
+        int
+    {%- elif schema.type == 'number' -%}
+        float
+    {%- elif schema.type == 'boolean' -%}
+        bool
+    {%- elif schema.type == 'array' -%}
+        list
+    {%- elif schema.type == 'object' -%}
+        dict
+    {%- else -%}
+        Any
+    {%- endif -%}
+{%- endmacro -%}
+
+{%- macro render_parameter_doc(name, schema, required) -%}
+    {%- set has_description = schema.description is defined and schema.description -%}
+    {%- set has_enum = schema.enum is defined and schema.enum -%}
+    {%- set has_numeric_bounds = schema.minimum is defined or schema.maximum is defined -%}
+    {%- set has_length_bounds = schema.minLength is defined or schema.maxLength is defined -%}
+    {%- set has_pattern = schema.pattern is defined and schema.pattern -%}
+    {%- set has_item_bounds = schema.minItems is defined or schema.maxItems is defined -%}
+    {{- name ~ ": " -}}
+    {%- if has_description -%}
+        {{- schema.description -}}
+    {%- endif -%}
+    {%- if schema.minimum is defined and schema.maximum is defined -%}
+        {{- " (range: " ~ schema.minimum ~ " to " ~ schema.maximum ~ ")" -}}
+    {%- elif schema.minimum is defined -%}
+        {{- " (minimum: " ~ schema.minimum ~ ")" -}}
+    {%- elif schema.maximum is defined -%}
+        {{- " (maximum: " ~ schema.maximum ~ ")" -}}
+    {%- endif -%}
+    {%- if schema.minLength is defined and schema.maxLength is defined -%}
+        {{- " (length: " ~ schema.minLength ~ " to " ~ schema.maxLength ~ ")" -}}
+    {%- elif schema.minLength is defined -%}
+        {{- " (minimum length: " ~ schema.minLength ~ ")" -}}
+    {%- elif schema.maxLength is defined -%}
+        {{- " (maximum length: " ~ schema.maxLength ~ ")" -}}
+    {%- endif -%}
+    {%- if has_pattern -%}
+        {{- " (pattern: " ~ schema.pattern ~ ")" -}}
+    {%- endif -%}
+    {%- if schema.minItems is defined and schema.maxItems is defined -%}
+        {{- " (items: " ~ schema.minItems ~ " to " ~ schema.maxItems ~ ")" -}}
+    {%- elif schema.minItems is defined -%}
+        {{- " (minimum items: " ~ schema.minItems ~ ")" -}}
+    {%- elif schema.maxItems is defined -%}
+        {{- " (maximum items: " ~ schema.maxItems ~ ")" -}}
+    {%- endif -%}
+    {%- if has_enum -%}
+        {%- if has_description or has_numeric_bounds or has_length_bounds or has_pattern or has_item_bounds -%}
+            {{- " " -}}
+        {%- endif -%}
+        {{- "One of: " -}}
+        {%- for enum_value in schema.enum -%}
+            {%- if not loop.first -%}, {% endif -%}
+            {{- enum_value | tojson(ensure_ascii=False) -}}
+        {%- endfor -%}
+    {%- elif not has_description and not has_numeric_bounds and not has_length_bounds and not has_pattern and not has_item_bounds -%}
+        {{- render_python_type(schema) -}}
+    {%- endif -%}
+{%- endmacro -%}
+
+{%- macro render_tool(tool) -%}
+    {%- set parameters = tool.parameters if tool.parameters is defined else tool -%}
+    {%- set properties = parameters.properties if parameters.properties is defined else {} -%}
+    {%- set required = parameters.required if parameters.required is defined else [] -%}
+    {%- set has_description = tool.description is defined and tool.description -%}
+def {{ tool.name }}({% for name, schema in properties.items() %}{{ name }}: {{ render_python_type(schema) }}{% if name not in required %} = None{% endif %}{% if not loop.last %}, {% endif %}{% endfor %}):
+    """{% if has_description %}{{ tool.description }}{% endif %}{% if properties %}{{ '\n\n' if has_description else '\n' }}    Args:{% for name, schema in properties.items() %}{{ '\n        ' ~ render_parameter_doc(name, schema, name in required) }}{% endfor %}{{ '\n    """' }}{% elif has_description %}"""{% else %}{{ '\n    """' }}{% endif %}
+{%- endmacro -%}

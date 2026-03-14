@@ -46,7 +46,7 @@ captioning:
 tool_calling:
   native: false
   formats:
-    - name: json
+    - name: pythonic
       tokens:
-        start: "```json\n"
+        start: "```tool_call\n"
         end: "\n```"
