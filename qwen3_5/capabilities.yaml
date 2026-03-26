@@ -1,0 +1,39 @@
+modalities:
+  - text
+
+features:
+  - thinking
+  - tool_use
+  - streaming
+
+context_length: 262144
+
+thinking:
+  native: true
+  tokens:
+    start: "<think>\n"
+    end: "\n</think>"
+
+tool_calling:
+  native: true
+  formats:
+    - name: xml
+      tokens:
+        start: "<tool_call>\n"
+        end: "\n</tool_call>"
+        section_start: "<tools>"
+        section_end: "</tools>"
+  result_tokens:
+    start: "<tool_response>\n"
+    end: "\n</tool_response>"
+
+generation_defaults:
+  bos_token_id: 248044
+  pad_token_id: 248044
+  eos_token_ids:
+    - 248046
+    - 248044
+  do_sample: true
+  temperature: 0.6
+  top_k: 20
+  top_p: 0.95
