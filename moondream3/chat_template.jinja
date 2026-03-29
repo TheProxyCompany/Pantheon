@@ -32,6 +32,7 @@
             {{- tool_macros.render_tool(t) -}}
         {%- endfor -%}
         {{- "\n\nWhen you need a tool, respond with exactly one Python-style function call using keyword arguments inside \"" + tc_tokens.start | trim + "\" and \"" + tc_tokens.end | trim + "\"." -}}
+        {{- "\nTool results will be returned in a Tool result block. After receiving a tool result, answer the user's question in plain text unless you truly need another tool." -}}
         {{- "\nUse double quotes for strings, True or False for booleans, and None for null values." -}}
     {%- endif -%}
 {%- endmacro -%}
@@ -72,7 +73,9 @@
 {# ------------------------------------------------------------------------ #}
 {%- macro render_tool_result(interaction) -%}
     {{- render_role_header('tool') -}}
+    {{- "Tool result:\n```tool_output\n" -}}
     {{- render_content(interaction) -}}
+    {{- "\n```" -}}
     {{- end_of_message -}}
 {%- endmacro -%}
 {# ------------------------------------------------------------------------ #}

@@ -83,14 +83,15 @@
     {{- raise_exception('No user query found in messages.') }}
 {%- endif %}
 {%- for message in messages %}
+    {%- set role = "assistant" if message.role == "agent" else message.role %}
     {%- set content = render_content(message.content, true)|trim %}
-    {%- if message.role == "system" %}
+    {%- if role == "system" %}
         {%- if not loop.first %}
             {{- raise_exception('System message must be at the beginning.') }}
         {%- endif %}
-    {%- elif message.role == "user" %}
-        {{- '<|im_start|>' + message.role + '\n' + content + '<|im_end|>' + '\n' }}
-    {%- elif message.role == "assistant" %}
+    {%- elif role == "user" %}
+        {{- '<|im_start|>' + role + '\n' + content + '<|im_end|>' + '\n' }}
+    {%- elif role == "assistant" %}
         {%- set reasoning_content = '' %}
         {%- if message.reasoning_content is string %}
             {%- set reasoning_content = message.reasoning_content %}
@@ -102,9 +103,9 @@
         {%- endif %}
         {%- set reasoning_content = reasoning_content|trim %}
         {%- if loop.index0 > ns.last_query_index %}
-            {{- '<|im_start|>' + message.role + '\n<think>\n' + reasoning_content + '\n</think>\n\n' + content }}
+            {{- '<|im_start|>assistant\n<think>\n' + reasoning_content + '\n</think>\n\n' + content }}
         {%- else %}
-            {{- '<|im_start|>' + message.role + '\n' + content }}
+            {{- '<|im_start|>assistant\n' + content }}
         {%- endif %}
         {%- if message.tool_calls and message.tool_calls is iterable and message.tool_calls is not mapping %}
             {%- for tool_call in message.tool_calls %}
@@ -132,7 +133,7 @@
             {%- endfor %}
         {%- endif %}
         {{- '<|im_end|>\n' }}
-    {%- elif message.role == "tool" %}
+    {%- elif role == "tool" %}
         {%- if loop.previtem and loop.previtem.role != "tool" %}
             {{- '<|im_start|>user' }}
         {%- endif %}
