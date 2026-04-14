@@ -1,0 +1,137 @@
+{# ------------------------------------------------------------------------ #}
+{# Gemma 4 chat template                                                   #}
+{# Uses <|turn>role\n ... <turn|>\n turn structure                         #}
+{# Tool calls: <|tool_call>call:name{args}<tool_call|>                     #}
+{# Thinking: <|channel>thought\n ... <channel|>                            #}
+{# ------------------------------------------------------------------------ #}
+{%- set add_generation_prompt = add_generation_prompt or true -%}
+{%- set prefill = prefill or none -%}
+{%- if capabilities is defined and capabilities.tool_calling is defined -%}
+    {%- set tc_tokens = capabilities.tool_calling.formats[0].tokens -%}
+    {%- set result_tokens = capabilities.tool_calling.result_tokens -%}
+{%- else -%}
+    {%- set tc_tokens = none -%}
+    {%- set result_tokens = none -%}
+{%- endif -%}
+{%- if capabilities is defined and capabilities.thinking is defined -%}
+    {%- set think_tokens = capabilities.thinking.tokens -%}
+{%- else -%}
+    {%- set think_tokens = none -%}
+{%- endif -%}
+{%- import "tool_macros.jinja" as tool_macros -%}
+{# ------------------------------------------------------------------------ #}
+{# Macro: render_role_header                                                #}
+{# ------------------------------------------------------------------------ #}
+{%- macro render_role_header(role_key) -%}
+    {%- set role = roles.get(role_key) -%}
+    {%- if role is not none -%}
+        {{- role.role_start_tag + role.role_name + role.role_end_tag -}}
+    {%- endif -%}
+{%- endmacro -%}
+{# ------------------------------------------------------------------------ #}
+{# Macro: render_content                                                    #}
+{# ------------------------------------------------------------------------ #}
+{%- macro render_content(content) -%}
+    {%- if content is string -%}
+        {{- content | safe -}}
+    {%- else -%}
+        {%- for item in content -%}
+            {%- if item['type'] == 'image' -%}
+                {{- capabilities.vision.tokens.placeholder -}}
+            {%- elif item['type'] == 'audio' -%}
+                {{- capabilities.audio.tokens.placeholder -}}
+            {%- else -%}
+                {{- item | safe -}}
+            {%- endif -%}
+        {%- endfor -%}
+    {%- endif -%}
+{%- endmacro -%}
+{# ------------------------------------------------------------------------ #}
+{# Macro: render_interaction                                                #}
+{# ------------------------------------------------------------------------ #}
+{%- macro render_interaction(interaction) -%}
+    {{- render_role_header(interaction['role']) -}}
+    {{- render_content(interaction['content']) -}}
+    {{ end_of_message }}
+{%- endmacro -%}
+{# ------------------------------------------------------------------------ #}
+{# Macro: render_tool_call                                                  #}
+{# Gemma 4 format: <|tool_call>call:name{args}<tool_call|>                 #}
+{# ------------------------------------------------------------------------ #}
+{%- macro render_tool_call(interaction) -%}
+    {{- render_role_header('agent') -}}
+    {%- if interaction['content'] is string and interaction['content'] -%}
+        {{- interaction['content'] | safe + "\n" -}}
+    {%- endif %}
+    {%- if tc_tokens -%}
+        {%- for tool_call in interaction['tool_calls'] -%}
+            {{- tc_tokens.start -}}
+            {{- tool_macros.render_python_call(tool_call) -}}
+            {{- tc_tokens.end -}}
+        {%- endfor -%}
+    {%- endif -%}
+    {{ end_of_message }}
+{%- endmacro -%}
+{# ------------------------------------------------------------------------ #}
+{# Macro: render_tool_result                                                #}
+{# Gemma 4: <|tool_response>response:name{result}<tool_response|>          #}
+{# ------------------------------------------------------------------------ #}
+{%- macro render_tool_result(interaction) -%}
+    {%- if result_tokens -%}
+        {{- result_tokens.start -}}
+        {{- render_content(interaction['content']) -}}
+        {{- result_tokens.end -}}
+    {%- else -%}
+        {{- render_role_header('user') -}}
+        {{- render_content(interaction['content']) -}}
+        {{ end_of_message }}
+    {%- endif -%}
+{%- endmacro -%}
+{# ------------------------------------------------------------------------ #}
+{# Main template                                                            #}
+{# ------------------------------------------------------------------------ #}
+{{ begin_of_text }}
+{# System turn: emitted if system message, tools, or thinking enabled #}
+{%- set has_system = interactions and interactions[0]['role'] == 'system' -%}
+{%- set has_tools = tools is defined and tools and tc_tokens -%}
+{%- set enable_thinking = reasoning is defined and reasoning -%}
+{%- if has_system or has_tools or enable_thinking -%}
+    {{- render_role_header('system') -}}
+    {%- if enable_thinking and think_tokens -%}
+        {{- think_tokens.enable -}}
+    {%- endif -%}
+    {%- if has_system -%}
+        {{- render_content(interactions[0]['content']) -}}
+    {%- endif -%}
+    {%- if has_tools -%}
+        {%- for t in tools -%}
+            {{- "\n" -}}
+            {{- tc_tokens.definition_start -}}
+            {{- tool_macros.render_tool(t) -}}
+            {{- tc_tokens.definition_end -}}
+        {%- endfor -%}
+    {%- endif -%}
+    {{ end_of_message }}
+{%- endif -%}
+
+{# Render conversation #}
+{%- for interaction in interactions -%}
+    {%- if has_system and loop.first -%}
+        {# Already rendered system message above #}
+    {%- elif interaction.tool_calls is defined and interaction.tool_calls -%}
+        {{- render_tool_call(interaction) -}}
+    {%- elif interaction['role'] == 'tool' or (interaction.tool_call_id is defined and interaction.tool_call_id) -%}
+        {{- render_tool_result(interaction) -}}
+    {%- else -%}
+        {{ render_interaction(interaction) -}}
+    {%- endif -%}
+{%- endfor -%}
+{%- if add_generation_prompt -%}
+    {{- render_role_header('agent') -}}
+    {%- if not enable_thinking and think_tokens -%}
+        {{- think_tokens.suppress -}}
+    {%- endif -%}
+{%- endif -%}
+{%- if prefill is not none -%}
+    {{- prefill -}}
+{%- endif -%}
