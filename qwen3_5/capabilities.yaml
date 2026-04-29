@@ -21,8 +21,6 @@ tool_calling:
       tokens:
         start: "<tool_call>\n"
         end: "\n</tool_call>"
-        section_start: "<tools>"
-        section_end: "</tools>"
   result_tokens:
     start: "<tool_response>\n"
     end: "\n</tool_response>"
