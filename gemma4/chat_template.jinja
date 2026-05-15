@@ -97,7 +97,7 @@
     {%- else -%}
         {%- set function_name = tool_data['name'] -%}
         {%- set function_description = tool_data['description'] -%}
-        {%- set params = tool_data['properties']['arguments'] if tool_data['properties'] is defined and tool_data['properties']['arguments'] is defined else none -%}
+        {%- set params = tool_data['parameters'] if tool_data['parameters'] is defined else (tool_data['properties']['arguments'] if tool_data['properties'] is defined and tool_data['properties']['arguments'] is defined else none) -%}
         {%- set response_declaration = none -%}
     {%- endif -%}
     declaration:{{- function_name -}}{description:<|"|>{{- function_description -}}<|"|>
