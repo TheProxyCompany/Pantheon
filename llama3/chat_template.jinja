@@ -93,6 +93,11 @@
         {{- render_content(interactions[0]['content']) -}}
     {%- endif -%}
     {{- end_of_sequence -}}
+{%- else -%}
+    {{- render_role_header('system') -}}
+    {{- "Cutting Knowledge Date: December 2023\n" -}}
+    {{- "Today Date: 26 Jul 2024\n\n" -}}
+    {{- end_of_sequence -}}
 {%- endif -%}
 {# Render conversation #}
 {%- for interaction in interactions -%}
