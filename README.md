@@ -6,13 +6,14 @@ Model profiles for [Orchard](https://github.com/TheProxyCompany): chat templates
 
 Every model has its own prompt format, special tokens, and behavioral quirks. Hugging Face standardized the basics — `tokenizer_config.json` for special tokens, `chat_template` as inline Jinja for prompt format. But HF has no way to declare what a model can *do*. There's no capability manifest. No structured representation of tool calling format. No declaration of whether a model supports thinking, vision, or structured output. It's all baked into Jinja as imperative code, or left implicit.
 
-This repo fills that gap. Each model profile is three files:
+This repo fills that gap. Each model profile is four files:
 
 - **`control_tokens.json`** — Special tokens that delimit turns and sequences (BOS, EOS, role tags).
 - **`capabilities.yaml`** — What the model can do and how to activate it (thinking, tool calling, vision, etc.).
+- **`generation.yaml`** — Model generation defaults and recommended sampling profiles.
 - **`chat_template.jinja`** — Prompt assembly using tokens, capabilities, and messages.
 
-Control tokens are the atoms. Capabilities declare behaviors. The chat template assembles them into a prompt.
+Control tokens are the atoms. Capabilities declare behaviors. Generation declares sampling policy. The chat template assembles them into a prompt.
 
 ## Structure
 
@@ -20,6 +21,7 @@ Control tokens are the atoms. Capabilities declare behaviors. The chat template 
 {model_family}/
 ├── control_tokens.json     # Special tokens — BOS, EOS, role tags
 ├── capabilities.yaml       # What the model can do and how to activate it
+├── generation.yaml         # Default, recommended, and deterministic sampling configs
 └── chat_template.jinja     # Prompt format using tokens, capabilities, and messages
 ```
 
@@ -82,6 +84,19 @@ Models use different formats for tool calls. The `formats` field declares which 
 
 Each format can declare its own `tokens` for start/end delimiters. When a model wasn't trained on tool calling (`native: false`), the engine uses constrained generation to enforce the format — no training required.
 
+## generation.yaml
+
+A declarative manifest of the model's generation settings. Keep sampling policy out of `capabilities.yaml`.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `tokens` | dict | Optional BOS, PAD, and EOS token ids from the model generation config |
+| `default` | dict | Default generation settings from the model's generation config |
+| `recommended` | dict | Recommended quality/headline-eval sampling settings |
+| `deterministic` | dict | Engineering lane for greedy, reproducible perf/comparison runs |
+
+Common sampling keys are `temperature`, `top_p`, `top_k`, `min_p`, `presence_penalty`, `frequency_penalty`, and `repetition_penalty`.
+
 ## Adding a New Model
 
 1. **Copy the example directory**
@@ -105,16 +120,20 @@ Each format can declare its own `tokens` for start/end delimiters. When a model 
 
    Declare the model's capabilities using the schema described above.
 
-4. **Edit `chat_template.jinja`**
+4. **Edit `generation.yaml`**
+
+   Declare model generation defaults, recommended quality settings, and deterministic engineering settings.
+
+5. **Edit `chat_template.jinja`**
 
    Customize the Jinja2 template for the model's prompt format. The template receives:
    - All `control_tokens.json` fields as variables (`begin_of_text`, `roles`, etc.)
    - All `capabilities.yaml` data as the `capabilities` object (e.g., `capabilities.thinking.tokens.start`)
    - Runtime variables: `interactions`, `add_generation_prompt`, `prefill`, `reasoning`, `task`, `tools`
 
-5. **Submit a PR**
+6. **Submit a PR**
 
-6. **After merge**, update the submodule in each SDK
+7. **After merge**, update the submodule in each SDK
 
 ## SDK Integration
 

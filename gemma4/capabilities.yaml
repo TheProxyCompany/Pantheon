@@ -45,12 +45,3 @@ tool_calling:
   result_tokens:
     start: "<|tool_response>"
     end: "<tool_response|>"
-
-generation_defaults:
-  bos_token_id: 2
-  pad_token_id: 0
-  eos_token_ids:
-    - 1
-    - 106
-  do_sample: true
-  temperature: 1.0

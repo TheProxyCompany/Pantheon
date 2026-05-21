@@ -1,0 +1,34 @@
+# generation.yaml — reference template
+# Copy this file to your model directory and fill in the values.
+#
+# tokens: model token ids from generation_config.json when available.
+# default: default sampling settings from the model's generation config.
+# recommended: quality/headline-eval sampling settings.
+# deterministic: greedy engineering lane for perf/comparison runs.
+
+tokens:
+  bos_token_id: 0
+  pad_token_id: 0
+  eos_token_ids:
+    - 1
+
+default:
+  do_sample: true
+  temperature: 1.0
+  top_p: 1.0
+  top_k: -1
+  min_p: 0.0
+
+recommended:
+  do_sample: true
+  temperature: 1.0
+  top_p: 1.0
+  top_k: -1
+  min_p: 0.0
+
+deterministic:
+  do_sample: false
+  temperature: 0.0
+  top_p: 1.0
+  top_k: -1
+  min_p: 0.0
