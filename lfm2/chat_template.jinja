@@ -30,14 +30,11 @@
     {%- set messages = messages[1:] -%}
 {%- endif -%}
 {%- if tools -%}
-    {%- set ns.system_prompt = ns.system_prompt + ("\n" if ns.system_prompt else "") + "List of tools: [" -%}
+    {%- set ns.system_prompt = ns.system_prompt + ("\n\n" if ns.system_prompt else "") + "You may call one or more functions to assist with the user query.\n\n<tools>" -%}
     {%- for tool in tools -%}
-        {%- set ns.system_prompt = ns.system_prompt + (tool if tool is string else (tool | tojson)) -%}
-        {%- if not loop.last -%}
-            {%- set ns.system_prompt = ns.system_prompt + ", " -%}
-        {%- endif -%}
+        {%- set ns.system_prompt = ns.system_prompt + "\n" + (tool if tool is string else (tool | tojson)) -%}
     {%- endfor -%}
-    {%- set ns.system_prompt = ns.system_prompt + "]" -%}
+    {%- set ns.system_prompt = ns.system_prompt + "\n</tools>\n\nFor each function call, return a JSON object with name and arguments inside <tool_call> tags:\n<tool_call>\n{\"name\":\"function_name\",\"arguments\":{\"argument_name\":\"value\"}}\n</tool_call>" -%}
 {%- endif -%}
 {%- if ns.system_prompt -%}
     {{- "<|im_start|>system\n" + ns.system_prompt + "<|im_end|>\n" -}}
@@ -52,12 +49,37 @@
 {%- endfor -%}
 {%- for message in messages -%}
     {%- set role = "assistant" if message.role == "agent" else message.role -%}
-    {{- "<|im_start|>" + role + "\n" -}}
-    {%- set content = render_content(message.content) -%}
-    {%- if role == "assistant" and not keep_past_thinking and loop.index0 != ns.last_assistant_index and "</think>" in content -%}
-        {%- set content = content.split("</think>")[-1] | trim -%}
+    {%- if role == "assistant" -%}
+        {{- "<|im_start|>assistant\n" -}}
+        {%- set content = render_content(message.content) -%}
+        {%- if not keep_past_thinking and loop.index0 != ns.last_assistant_index and "</think>" in content -%}
+            {%- set content = content.split("</think>")[-1] | trim -%}
+        {%- endif -%}
+        {{- content -}}
+        {%- if message.tool_calls and message.tool_calls is iterable and message.tool_calls is not mapping -%}
+            {%- for tool_call in message.tool_calls -%}
+                {%- set function = tool_call.function if tool_call.function is defined else tool_call -%}
+                {{- "\n<tool_call>\n{\"name\":" + (function.name | tojson) + ",\"arguments\":" -}}
+                {%- if function.arguments is string -%}
+                    {{- function.arguments -}}
+                {%- else -%}
+                    {{- function.arguments | tojson -}}
+                {%- endif -%}
+                {{- "}\n</tool_call>" -}}
+            {%- endfor -%}
+        {%- endif -%}
+        {{- "<|im_end|>\n" -}}
+    {%- elif role == "tool" -%}
+        {%- if loop.previtem and loop.previtem.role != "tool" -%}
+            {{- "<|im_start|>user" -}}
+        {%- endif -%}
+        {{- "\n<tool_response>\n" + (render_content(message.content) | trim) + "\n</tool_response>" -}}
+        {%- if loop.last or loop.nextitem.role != "tool" -%}
+            {{- "<|im_end|>\n" -}}
+        {%- endif -%}
+    {%- else -%}
+        {{- "<|im_start|>" + role + "\n" + render_content(message.content) + "<|im_end|>\n" -}}
     {%- endif -%}
-    {{- content + "<|im_end|>\n" -}}
 {%- endfor -%}
 {%- if add_generation_prompt -%}
     {{- "<|im_start|>assistant\n" -}}
