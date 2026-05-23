@@ -1,0 +1,27 @@
+tokens:
+  bos_token_id: 199998
+  pad_token_id: 199999
+  eos_token_ids:
+    - 200002
+    - 200012
+
+default:
+  do_sample: true
+  temperature: 1.0
+  top_p: 1.0
+  top_k: -1
+  min_p: 0.0
+
+recommended:
+  do_sample: true
+  temperature: 1.0
+  top_p: 1.0
+  top_k: -1
+  min_p: 0.0
+
+deterministic:
+  do_sample: false
+  temperature: 0.0
+  top_p: 1.0
+  top_k: -1
+  min_p: 0.0

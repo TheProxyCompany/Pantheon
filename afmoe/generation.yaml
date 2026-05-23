@@ -1,0 +1,27 @@
+tokens:
+  bos_token_id: 0
+  pad_token_id: 12
+  eos_token_ids:
+    - 3
+    - 1
+
+default:
+  do_sample: true
+  temperature: 0.15
+  top_p: 0.75
+  top_k: 50
+  min_p: 0.06
+
+recommended:
+  do_sample: true
+  temperature: 0.15
+  top_p: 0.75
+  top_k: 50
+  min_p: 0.06
+
+deterministic:
+  do_sample: false
+  temperature: 0.0
+  top_p: 1.0
+  top_k: -1
+  min_p: 0.0

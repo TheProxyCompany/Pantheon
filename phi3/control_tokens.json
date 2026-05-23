@@ -1,0 +1,28 @@
+{
+    "template_type": "phi3",
+    "begin_of_text": "<|endoftext|>",
+    "end_of_message": "<|im_end|>",
+    "end_of_sequence": "<|im_end|>",
+    "roles": {
+        "system": {
+            "role_name": "system",
+            "role_start_tag": "<|im_start|>",
+            "role_end_tag": "<|im_sep|>"
+        },
+        "agent": {
+            "role_name": "assistant",
+            "role_start_tag": "<|im_start|>",
+            "role_end_tag": "<|im_sep|>"
+        },
+        "user": {
+            "role_name": "user",
+            "role_start_tag": "<|im_start|>",
+            "role_end_tag": "<|im_sep|>"
+        },
+        "tool": {
+            "role_name": "tool",
+            "role_start_tag": "<|im_start|>",
+            "role_end_tag": "<|im_sep|>"
+        }
+    }
+}

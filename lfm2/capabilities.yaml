@@ -1,0 +1,7 @@
+modalities:
+  - text
+
+features:
+  - streaming
+
+context_length: 32768

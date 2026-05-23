@@ -1,0 +1,19 @@
+modalities:
+  - text
+
+features:
+  - tool_use
+  - streaming
+
+context_length: 131072
+
+tool_calling:
+  native: true
+  formats:
+    - name: json
+      tokens:
+        start: "<tool_call>\n"
+        end: "\n</tool_call>"
+  result_tokens:
+    start: "<tool_response>\n"
+    end: "\n</tool_response>"

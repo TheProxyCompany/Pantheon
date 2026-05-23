@@ -1,0 +1,71 @@
+{%- set messages = messages if messages is defined else interactions -%}
+{%- macro render_content(content) -%}
+    {%- if content is string -%}
+        {{- content -}}
+    {%- elif content is iterable and content is not mapping -%}
+        {%- for item in content -%}
+            {%- if item.text is defined -%}
+                {{- item.text -}}
+            {%- elif item.type is defined and item.type == "text" -%}
+                {{- item.text | default("") -}}
+            {%- endif -%}
+        {%- endfor -%}
+    {%- elif content is none or content is undefined -%}
+        {{- "" -}}
+    {%- else -%}
+        {{- content -}}
+    {%- endif -%}
+{%- endmacro -%}
+
+{%- set has_system = messages | selectattr("role", "equalto", "system") | list | length > 0 -%}
+{%- if not has_system -%}
+    {{- "<|im_start|>system\nYou are a helpful function-calling AI assistant. " -}}
+    {%- if tools -%}
+        {{- "You are provided with function signatures within <functions></functions> XML tags. Output function calls within <function_calls></function_calls> XML tags.<functions>" -}}
+        {{- tools | tojson -}}
+        {{- "</functions><|im_end|>\n" -}}
+    {%- else -%}
+        {{- "You do not currently have access to any functions. <functions></functions><|im_end|>\n" -}}
+    {%- endif -%}
+{%- endif -%}
+{%- for message in messages -%}
+    {%- set role = "assistant" if message.role == "agent" else message.role -%}
+    {%- if role == "system" -%}
+        {{- "<|im_start|>system\n" + render_content(message.content) -}}
+        {%- if tools -%}
+            {{- "<functions>" + (tools | tojson) + "</functions>" -}}
+        {%- endif -%}
+        {{- "<|im_end|>\n" -}}
+    {%- elif role == "user" -%}
+        {{- "<|im_start|>user\n" + render_content(message.content) + "<|im_end|>\n" -}}
+    {%- elif role == "assistant" -%}
+        {{- "<|im_start|>assistant\n" + render_content(message.content) -}}
+        {%- if message.tool_calls -%}
+            {{- "<function_calls>" -}}
+            {%- for tool_call in message.tool_calls -%}
+                {%- set function = tool_call.function if tool_call.function is defined else tool_call -%}
+                {{- function.name + "(" -}}
+                {%- if function.arguments is mapping -%}
+                    {%- for key, value in function.arguments.items() -%}
+                        {{- key + "=" + (value | tojson) -}}
+                        {%- if not loop.last -%}{{- ", " -}}{%- endif -%}
+                    {%- endfor -%}
+                {%- else -%}
+                    {{- function.arguments -}}
+                {%- endif -%}
+                {{- ")" -}}
+                {%- if not loop.last -%}{{- "\n" -}}{%- endif -%}
+            {%- endfor -%}
+            {{- "</function_calls>" -}}
+        {%- endif -%}
+        {{- "<|im_end|>\n" -}}
+    {%- elif role == "tool" -%}
+        {{- "<|im_start|>environment\n" + render_content(message.content) + "<|im_end|>\n" -}}
+    {%- endif -%}
+{%- endfor -%}
+{%- if add_generation_prompt -%}
+    {{- "<|im_start|>assistant\n" -}}
+{%- endif -%}
+{%- if prefill is not none -%}
+    {{- prefill -}}
+{%- endif -%}

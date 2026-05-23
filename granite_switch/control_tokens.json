@@ -1,0 +1,28 @@
+{
+    "template_type": "granite_switch",
+    "begin_of_text": "",
+    "end_of_message": "<|end_of_text|>\n",
+    "end_of_sequence": "<|end_of_text|>",
+    "roles": {
+        "system": {
+            "role_name": "system",
+            "role_start_tag": "<|start_of_role|>",
+            "role_end_tag": "<|end_of_role|>"
+        },
+        "agent": {
+            "role_name": "assistant",
+            "role_start_tag": "<|start_of_role|>",
+            "role_end_tag": "<|end_of_role|>"
+        },
+        "user": {
+            "role_name": "user",
+            "role_start_tag": "<|start_of_role|>",
+            "role_end_tag": "<|end_of_role|>"
+        },
+        "tool": {
+            "role_name": "tool",
+            "role_start_tag": "<|start_of_role|>",
+            "role_end_tag": "<|end_of_role|>"
+        }
+    }
+}

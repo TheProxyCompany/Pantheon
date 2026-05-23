@@ -1,0 +1,196 @@
+{%- set messages = messages if messages is defined else interactions -%}
+{%- set reasoning_effort = reasoning_effort if reasoning_effort is defined else "medium" -%}
+{%- set frame = capabilities.output_framing -%}
+{%- set markers = frame.markers -%}
+{%- set channels = frame.channels -%}
+{%- set tool_tokens = capabilities.tool_calling.formats[0].tokens -%}
+
+{%- macro render_content(content) -%}
+    {%- if content is string -%}
+        {{- content -}}
+    {%- elif content is iterable and content is not mapping -%}
+        {%- for item in content -%}
+            {%- if item.text is defined -%}
+                {{- item.text -}}
+            {%- elif item.type is defined and item.type == "text" -%}
+                {{- item.text | default("") -}}
+            {%- endif -%}
+        {%- endfor -%}
+    {%- elif content is none or content is undefined -%}
+        {{- "" -}}
+    {%- else -%}
+        {{- content -}}
+    {%- endif -%}
+{%- endmacro -%}
+
+{%- macro render_typescript_type(param_spec) -%}
+    {%- if param_spec.type == "array" -%}
+        {%- if param_spec["items"] is defined -%}
+            {{- render_typescript_type(param_spec["items"]) + "[]" -}}
+        {%- else -%}
+            {{- "any[]" -}}
+        {%- endif -%}
+    {%- elif param_spec.type == "integer" or param_spec.type == "number" -%}
+        {{- "number" -}}
+    {%- elif param_spec.type == "boolean" -%}
+        {{- "boolean" -}}
+    {%- elif param_spec.type == "object" -%}
+        {%- if param_spec.properties -%}
+            {{- "{\n" -}}
+            {%- for prop_name, prop_spec in param_spec.properties.items() -%}
+                {{- prop_name -}}
+                {%- if prop_name not in (param_spec.required or []) -%}
+                    {{- "?" -}}
+                {%- endif -%}
+                {{- ": " + render_typescript_type(prop_spec) -}}
+                {%- if not loop.last -%}
+                    {{- ",\n" -}}
+                {%- endif -%}
+            {%- endfor -%}
+            {{- "\n}" -}}
+        {%- else -%}
+            {{- "object" -}}
+        {%- endif -%}
+    {%- elif param_spec.enum -%}
+        {{- '"' + param_spec.enum|join('" | "') + '"' -}}
+    {%- else -%}
+        {{- "string" -}}
+    {%- endif -%}
+{%- endmacro -%}
+
+{%- macro render_tool_namespace(namespace_name, tools) -%}
+    {{- "## " + namespace_name + "\n\n" -}}
+    {{- "namespace " + namespace_name + " {\n\n" -}}
+    {%- for tool_data in tools -%}
+        {%- set tool = tool_data.function if tool_data.function is defined else tool_data -%}
+        {%- if tool.description -%}
+            {{- "// " + tool.description + "\n" -}}
+        {%- endif -%}
+        {{- "type " + tool.name + " = " -}}
+        {%- set params = tool.parameters if tool.parameters is defined else tool -%}
+        {%- if params.properties -%}
+            {{- "(_: {\n" -}}
+            {%- for param_name, param_spec in params.properties.items() -%}
+                {%- if param_spec.description -%}
+                    {{- "// " + param_spec.description + "\n" -}}
+                {%- endif -%}
+                {{- param_name -}}
+                {%- if param_name not in (params.required or []) -%}
+                    {{- "?" -}}
+                {%- endif -%}
+                {{- ": " + render_typescript_type(param_spec) + ",\n" -}}
+            {%- endfor -%}
+            {{- "}) => any;\n\n" -}}
+        {%- else -%}
+            {{- "() => any;\n\n" -}}
+        {%- endif -%}
+    {%- endfor -%}
+    {{- "} // namespace " + namespace_name -}}
+{%- endmacro -%}
+
+{%- macro render_system_message() -%}
+    {{- "You are ChatGPT, a large language model trained by OpenAI.\n" -}}
+    {{- "Knowledge cutoff: 2024-06\n\n" -}}
+    {{- "Reasoning: " + reasoning_effort + "\n\n" -}}
+    {{- "# Valid channels: " + channels.analysis + ", " + channels.commentary + ", " + channels.final + ". Channel must be included for every message." -}}
+    {%- if tools -%}
+        {{- "\nCalls to these tools must go to the commentary channel: 'functions'." -}}
+    {%- endif -%}
+{%- endmacro -%}
+
+{{- markers.start + "system" + markers.message -}}
+{{- render_system_message() -}}
+{{- markers.end -}}
+
+{%- set loop_messages = messages -%}
+{%- if tools -%}
+    {{- markers.start + "developer" + markers.message -}}
+    {{- "# Tools\n\n" -}}
+    {{- render_tool_namespace("functions", tools) -}}
+    {{- markers.end -}}
+{%- endif -%}
+
+{%- set last_tool_call = namespace(name=none, names=[], ids=[], index=0) -%}
+{%- for message in loop_messages -%}
+    {%- set role = "assistant" if message.role == "agent" else message.role -%}
+    {%- if role == "system" or role == "developer" -%}
+        {{- markers.start + "developer" + markers.message + "# Instructions\n\n" + render_content(message.content) + markers.end -}}
+    {%- elif role == "assistant" -%}
+        {%- set content = render_content(message.content) -%}
+        {%- if message.tool_calls -%}
+            {%- set future_final = namespace(found=false) -%}
+            {%- for future_message in loop_messages[loop.index:] -%}
+                {%- set future_role = "assistant" if future_message.role == "agent" else future_message.role -%}
+                {%- if future_role == "assistant" and not future_message.tool_calls -%}
+                    {%- set future_final.found = true -%}
+                {%- endif -%}
+            {%- endfor -%}
+            {%- set thinking_text = message.thinking if message.thinking is defined else (message.reasoning if message.reasoning is defined else message.reasoning_content) -%}
+            {%- if thinking_text and not future_final.found -%}
+                {{- markers.start + "assistant" + markers.channel + channels.analysis + markers.message + thinking_text + markers.end -}}
+            {%- elif content and not future_final.found -%}
+                {{- markers.start + "assistant" + markers.channel + channels.analysis + markers.message + content + markers.end -}}
+            {%- endif -%}
+            {%- set last_tool_call.names = [] -%}
+            {%- set last_tool_call.ids = [] -%}
+            {%- set last_tool_call.index = 0 -%}
+            {%- for tool_call in message.tool_calls -%}
+                {%- set function = tool_call.function if tool_call.function is defined else tool_call -%}
+                {{- markers.start + "assistant" + markers.channel + channels.commentary + tool_tokens.recipient_prefix + function.name + tool_tokens.constraint_prefix + markers.constrain + tool_tokens.constraint + markers.message -}}
+                {%- if function.arguments is string -%}
+                    {{- function.arguments -}}
+                {%- else -%}
+                    {{- function.arguments | tojson -}}
+                {%- endif -%}
+                {{- markers.call -}}
+                {%- set last_tool_call.name = function.name -%}
+                {%- set last_tool_call.names = last_tool_call.names + [function.name] -%}
+                {%- set last_tool_call.ids = last_tool_call.ids + [tool_call.id if tool_call.id is defined else none] -%}
+            {%- endfor -%}
+        {%- elif loop.last and not add_generation_prompt -%}
+            {%- set thinking_text = message.thinking if message.thinking is defined else (message.reasoning if message.reasoning is defined else message.reasoning_content) -%}
+            {%- if thinking_text -%}
+                {{- markers.start + "assistant" + markers.channel + channels.analysis + markers.message + thinking_text + markers.end -}}
+            {%- endif -%}
+            {{- markers.start + "assistant" + markers.channel + channels.final + markers.message + content + markers.return -}}
+        {%- else -%}
+            {{- markers.start + "assistant" + markers.channel + channels.final + markers.message + content + markers.end -}}
+            {%- set last_tool_call.name = none -%}
+            {%- set last_tool_call.names = [] -%}
+            {%- set last_tool_call.ids = [] -%}
+            {%- set last_tool_call.index = 0 -%}
+        {%- endif -%}
+    {%- elif role == "tool" -%}
+        {%- set matched_tool = namespace(name=none) -%}
+        {%- if message.tool_call_id is defined -%}
+            {%- for call_id in last_tool_call.ids -%}
+                {%- if call_id == message.tool_call_id and loop.index0 < (last_tool_call.names | length) -%}
+                    {%- set matched_tool.name = last_tool_call.names[loop.index0] -%}
+                {%- endif -%}
+            {%- endfor -%}
+        {%- endif -%}
+        {%- if message.name is defined -%}
+            {%- set tool_name = message.name -%}
+        {%- elif matched_tool.name -%}
+            {%- set tool_name = matched_tool.name -%}
+        {%- elif last_tool_call.index < (last_tool_call.names | length) -%}
+            {%- set tool_name = last_tool_call.names[last_tool_call.index] -%}
+            {%- set last_tool_call.index = last_tool_call.index + 1 -%}
+        {%- else -%}
+            {%- set tool_name = last_tool_call.name -%}
+        {%- endif -%}
+        {{- markers.start + "functions." + tool_name + " to=assistant" + markers.channel + channels.commentary + markers.message -}}
+        {{- render_content(message.content) -}}
+        {{- markers.end -}}
+    {%- elif role == "user" -%}
+        {{- markers.start + "user" + markers.message + render_content(message.content) + markers.end -}}
+    {%- endif -%}
+{%- endfor -%}
+
+{%- if add_generation_prompt -%}
+    {{- markers.start + "assistant" -}}
+{%- endif -%}
+
+{%- if prefill is not none -%}
+    {{- prefill -}}
+{%- endif -%}

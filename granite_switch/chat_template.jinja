@@ -1,0 +1,80 @@
+{%- set messages = messages if messages is defined else interactions -%}
+{%- set selected_adapter = "" -%}
+{%- if adapter_name is defined and adapter_name -%}
+    {%- set selected_adapter = adapter_name -%}
+{%- elif task is defined and task -%}
+    {%- set selected_adapter = task -%}
+{%- endif -%}
+{%- set lora_adapters = ["citations", "hallucination_detection", "context-attribution"] -%}
+{%- set alora_adapters = ["query_rewrite", "query_clarification", "answerability", "factuality-detection", "policy-guardrails", "guardian-core", "uncertainty", "requirement-check", "factuality-correction"] -%}
+{%- set adapter = namespace(token="", type="") -%}
+{%- if selected_adapter in lora_adapters -%}
+    {%- set adapter.token = "<|" + selected_adapter + "|>" -%}{%- set adapter.type = "lora" -%}
+{%- elif selected_adapter in alora_adapters -%}
+    {%- set adapter.token = "<|" + selected_adapter + "|>" -%}{%- set adapter.type = "alora" -%}
+{%- endif -%}
+{%- if adapter.token and adapter.type == "lora" -%}
+    {{- adapter.token -}}
+{%- endif -%}
+{%- macro render_content(content) -%}
+    {%- if content is string -%}
+        {{- content -}}
+    {%- elif content is iterable and content is not mapping -%}
+        {%- for item in content -%}
+            {%- if item.text is defined -%}
+                {{- item.text -}}
+            {%- elif item.type is defined and item.type == "text" -%}
+                {{- item.text | default("") -}}
+            {%- endif -%}
+        {%- endfor -%}
+    {%- elif content is none or content is undefined -%}
+        {{- "" -}}
+    {%- else -%}
+        {{- content -}}
+    {%- endif -%}
+{%- endmacro -%}
+
+{%- set ns = namespace(system_message="") -%}
+{%- if messages and messages[0].role == "system" -%}
+    {%- set ns.system_message = render_content(messages[0].content) -%}
+    {%- set messages = messages[1:] -%}
+{%- endif -%}
+{%- if tools -%}
+    {%- set ns.system_message = ns.system_message + ("\n\n" if ns.system_message else "") -%}
+    {%- set ns.system_message = ns.system_message + "You are a helpful assistant with access to the following tools. You are provided with function signatures within <tools></tools> XML tags:\n<tools>" -%}
+    {%- for tool in tools -%}
+        {%- set ns.system_message = ns.system_message + "\n" + (tool | tojson) -%}
+    {%- endfor -%}
+    {%- set ns.system_message = ns.system_message + "\n</tools>\n\nFor each tool call, return a json object with function name and arguments within <tool_call></tool_call> XML tags." -%}
+{%- endif -%}
+{%- if ns.system_message -%}
+    {{- "<|start_of_role|>system<|end_of_role|>" + ns.system_message + "<|end_of_text|>\n" -}}
+{%- endif -%}
+{%- for message in messages -%}
+    {%- set role = "assistant" if message.role == "agent" else message.role -%}
+    {%- if role == "user" or role == "system" -%}
+        {{- "<|start_of_role|>" + role + "<|end_of_role|>" + render_content(message.content) + "<|end_of_text|>\n" -}}
+    {%- elif role == "assistant" -%}
+        {{- "<|start_of_role|>assistant<|end_of_role|>" + render_content(message.content) -}}
+        {%- if message.tool_calls -%}
+            {%- for tool_call in message.tool_calls -%}
+                {%- set function = tool_call.function if tool_call.function is defined else tool_call -%}
+                {{- "\n<tool_call>\n{\"name\": " + (function.name | tojson) + ", \"arguments\": " -}}
+                {{- function.arguments if function.arguments is string else (function.arguments | tojson) -}}
+                {{- "}\n</tool_call>" -}}
+            {%- endfor -%}
+        {%- endif -%}
+        {{- "<|end_of_text|>\n" -}}
+    {%- elif role == "tool" -%}
+        {{- "<|start_of_role|>user<|end_of_role|>\n<tool_response>\n" + render_content(message.content) + "\n</tool_response><|end_of_text|>\n" -}}
+    {%- endif -%}
+{%- endfor -%}
+{%- if adapter.token and adapter.type == "alora" -%}
+    {{- adapter.token -}}
+{%- endif -%}
+{%- if add_generation_prompt -%}
+    {{- "<|start_of_role|>assistant<|end_of_role|>" -}}
+{%- endif -%}
+{%- if prefill is not none -%}
+    {{- prefill -}}
+{%- endif -%}

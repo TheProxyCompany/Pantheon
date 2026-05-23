@@ -19,6 +19,13 @@ thinking:
     end: "<channel|>"
     suppress: "<|channel>thought\n<channel|>"
 
+output_framing:
+  markers:
+    channel: "<|channel>"
+    message: "\n"
+  channels:
+    analysis: "thought"
+
 vision:
   native: true
   tokens:

@@ -1,0 +1,67 @@
+{{- begin_of_text -}}
+{%- set messages = messages if messages is defined else interactions -%}
+{%- set keep_past_thinking = keep_past_thinking | default(false) -%}
+{%- set ns = namespace(system_prompt="") -%}
+
+{%- macro render_content(content) -%}
+    {%- if content is string -%}
+        {{- content -}}
+    {%- elif content is iterable and content is not mapping -%}
+        {%- for item in content -%}
+            {%- if item.text is defined -%}
+                {{- item.text -}}
+            {%- elif item.type is defined and item.type == "text" -%}
+                {{- item.text | default("") -}}
+            {%- elif item.type is defined and item.type == "image" -%}
+                {{- "<image>" -}}
+            {%- else -%}
+                {{- item | tojson -}}
+            {%- endif -%}
+        {%- endfor -%}
+    {%- elif content is none or content is undefined -%}
+        {{- "" -}}
+    {%- else -%}
+        {{- content | tojson -}}
+    {%- endif -%}
+{%- endmacro -%}
+
+{%- if messages and messages[0].role == "system" -%}
+    {%- set ns.system_prompt = render_content(messages[0].content) -%}
+    {%- set messages = messages[1:] -%}
+{%- endif -%}
+{%- if tools -%}
+    {%- set ns.system_prompt = ns.system_prompt + ("\n" if ns.system_prompt else "") + "List of tools: [" -%}
+    {%- for tool in tools -%}
+        {%- set ns.system_prompt = ns.system_prompt + (tool if tool is string else (tool | tojson)) -%}
+        {%- if not loop.last -%}
+            {%- set ns.system_prompt = ns.system_prompt + ", " -%}
+        {%- endif -%}
+    {%- endfor -%}
+    {%- set ns.system_prompt = ns.system_prompt + "]" -%}
+{%- endif -%}
+{%- if ns.system_prompt -%}
+    {{- "<|im_start|>system\n" + ns.system_prompt + "<|im_end|>\n" -}}
+{%- endif -%}
+
+{%- set ns.last_assistant_index = -1 -%}
+{%- for message in messages -%}
+    {%- set role = "assistant" if message.role == "agent" else message.role -%}
+    {%- if role == "assistant" -%}
+        {%- set ns.last_assistant_index = loop.index0 -%}
+    {%- endif -%}
+{%- endfor -%}
+{%- for message in messages -%}
+    {%- set role = "assistant" if message.role == "agent" else message.role -%}
+    {{- "<|im_start|>" + role + "\n" -}}
+    {%- set content = render_content(message.content) -%}
+    {%- if role == "assistant" and not keep_past_thinking and loop.index0 != ns.last_assistant_index and "</think>" in content -%}
+        {%- set content = content.split("</think>")[-1] | trim -%}
+    {%- endif -%}
+    {{- content + "<|im_end|>\n" -}}
+{%- endfor -%}
+{%- if add_generation_prompt -%}
+    {{- "<|im_start|>assistant\n" -}}
+{%- endif -%}
+{%- if prefill is not none -%}
+    {{- prefill -}}
+{%- endif -%}

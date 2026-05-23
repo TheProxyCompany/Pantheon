@@ -1,0 +1,46 @@
+{%- set messages = messages if messages is defined else interactions -%}
+{%- macro render_content(content) -%}
+    {%- if content is string -%}
+        {{- content -}}
+    {%- elif content is iterable and content is not mapping -%}
+        {%- for item in content -%}
+            {%- if item.text is defined -%}
+                {{- item.text -}}
+            {%- elif item.type is defined and item.type == "text" -%}
+                {{- item.text | default("") -}}
+            {%- endif -%}
+        {%- endfor -%}
+    {%- elif content is none or content is undefined -%}
+        {{- "" -}}
+    {%- else -%}
+        {{- content -}}
+    {%- endif -%}
+{%- endmacro -%}
+{{- "<|im_start|>system<|im_sep|>You are Phi, a language model trained by Microsoft to help users." -}}
+{%- if reasoning -%}
+    {{- " Structure responses with <think> reasoning followed by the final answer." -}}
+{%- endif -%}
+{%- for message in messages -%}
+    {%- set role = "assistant" if message.role == "agent" else message.role -%}
+    {%- if role == "system" or role == "developer" -%}
+        {{- "\n" + render_content(message.content) -}}
+    {%- endif -%}
+{%- endfor -%}
+{{- "<|im_end|>" -}}
+{%- for message in messages -%}
+    {%- set role = "assistant" if message.role == "agent" else message.role -%}
+    {%- if role == "system" or role == "developer" -%}
+    {%- elif role == "user" -%}
+        {{- "<|im_start|>user<|im_sep|>" + render_content(message.content) + "<|im_end|>" -}}
+    {%- elif role == "assistant" -%}
+        {{- "<|im_start|>assistant<|im_sep|>" + render_content(message.content) + "<|im_end|>" -}}
+    {%- elif role == "tool" -%}
+        {{- "<|im_start|>user<|im_sep|>" + render_content(message.content) + "<|im_end|>" -}}
+    {%- endif -%}
+{%- endfor -%}
+{%- if add_generation_prompt -%}
+    {{- "<|im_start|>assistant<|im_sep|>" -}}
+{%- endif -%}
+{%- if prefill is not none -%}
+    {{- prefill -}}
+{%- endif -%}

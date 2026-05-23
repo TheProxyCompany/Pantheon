@@ -1,0 +1,27 @@
+modalities:
+  - text
+
+features:
+  - thinking
+  - tool_use
+  - streaming
+
+context_length: 32768
+
+thinking:
+  native: true
+  default: true
+  tokens:
+    start: "<think>\n"
+    end: "\n</think>"
+
+tool_calling:
+  native: true
+  formats:
+    - name: xml
+      tokens:
+        start: "<tool_call>\n"
+        end: "\n</tool_call>"
+  result_tokens:
+    start: "<tool_response>\n"
+    end: "\n</tool_response>"

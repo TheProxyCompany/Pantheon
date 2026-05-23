@@ -1,0 +1,11 @@
+modalities:
+  - text
+
+features:
+  - privacy_filter
+
+context_length: 4096
+
+tasks:
+  privacy_filter:
+    type: token_classification
