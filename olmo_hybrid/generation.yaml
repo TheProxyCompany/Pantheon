@@ -2,6 +2,7 @@ tokens:
   pad_token_id: 100277
   eos_token_ids:
     - 100257
+    - 100265
 
 default:
   do_sample: true

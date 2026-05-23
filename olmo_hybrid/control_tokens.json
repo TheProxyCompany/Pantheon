@@ -2,7 +2,7 @@
     "template_type": "olmo_hybrid",
     "begin_of_text": "",
     "end_of_message": "<|im_end|>\n",
-    "end_of_sequence": "<|endoftext|>",
+    "end_of_sequence": "<|im_end|>",
     "roles": {
         "system": {
             "role_name": "system",
