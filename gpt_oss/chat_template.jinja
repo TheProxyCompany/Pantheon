@@ -110,7 +110,7 @@
     {{- markers.end -}}
 {%- endif -%}
 
-{%- set last_tool_call = namespace(name=none, names=[], ids=[], index=0) -%}
+{%- set last_tool_call = namespace(names=[], ids=[]) -%}
 {%- for message in loop_messages -%}
     {%- set role = "assistant" if message.role == "agent" else message.role -%}
     {%- if role == "system" or role == "developer" -%}
@@ -133,7 +133,6 @@
             {%- endif -%}
             {%- set last_tool_call.names = [] -%}
             {%- set last_tool_call.ids = [] -%}
-            {%- set last_tool_call.index = 0 -%}
             {%- for tool_call in message.tool_calls -%}
                 {%- set function = tool_call.function if tool_call.function is defined else tool_call -%}
                 {{- markers.start + "assistant" + markers.channel + channels.commentary + tool_tokens.recipient_prefix + function.name + tool_tokens.constraint_prefix + markers.constrain + tool_tokens.constraint + markers.message -}}
@@ -143,7 +142,6 @@
                     {{- function.arguments | tojson -}}
                 {%- endif -%}
                 {{- markers.call -}}
-                {%- set last_tool_call.name = function.name -%}
                 {%- set last_tool_call.names = last_tool_call.names + [function.name] -%}
                 {%- set last_tool_call.ids = last_tool_call.ids + [tool_call.id if tool_call.id is defined else none] -%}
             {%- endfor -%}
@@ -155,10 +153,8 @@
             {{- markers.start + "assistant" + markers.channel + channels.final + markers.message + content + markers.return -}}
         {%- else -%}
             {{- markers.start + "assistant" + markers.channel + channels.final + markers.message + content + markers.end -}}
-            {%- set last_tool_call.name = none -%}
             {%- set last_tool_call.names = [] -%}
             {%- set last_tool_call.ids = [] -%}
-            {%- set last_tool_call.index = 0 -%}
         {%- endif -%}
     {%- elif role == "tool" -%}
         {%- set matched_tool = namespace(name=none) -%}
@@ -173,15 +169,12 @@
             {%- set tool_name = message.name -%}
         {%- elif matched_tool.name -%}
             {%- set tool_name = matched_tool.name -%}
-        {%- elif last_tool_call.index < (last_tool_call.names | length) -%}
-            {%- set tool_name = last_tool_call.names[last_tool_call.index] -%}
-            {%- set last_tool_call.index = last_tool_call.index + 1 -%}
-        {%- else -%}
-            {%- set tool_name = last_tool_call.name -%}
         {%- endif -%}
-        {{- markers.start + "functions." + tool_name + " to=assistant" + markers.channel + channels.commentary + markers.message -}}
-        {{- render_content(message.content) -}}
-        {{- markers.end -}}
+        {%- if tool_name -%}
+            {{- markers.start + "functions." + tool_name + " to=assistant" + markers.channel + channels.commentary + markers.message -}}
+            {{- render_content(message.content) -}}
+            {{- markers.end -}}
+        {%- endif -%}
     {%- elif role == "user" -%}
         {{- markers.start + "user" + markers.message + render_content(message.content) + markers.end -}}
     {%- endif -%}

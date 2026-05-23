@@ -111,6 +111,7 @@ Common sampling keys are `temperature`, `top_p`, `top_k`, `min_p`, `presence_pen
    | Field | Required | Description |
    |-------|----------|-------------|
    | `template_type` | Yes | Model family identifier (e.g., `"llama"`, `"gemma"`) |
+   | `model_types` | No | Model type strings that should load this profile |
    | `begin_of_text` | Yes | Beginning-of-sequence token |
    | `end_of_message` | Yes | End-of-turn token |
    | `end_of_sequence` | Yes | End-of-sequence token |
