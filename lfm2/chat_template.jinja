@@ -30,11 +30,14 @@
     {%- set messages = messages[1:] -%}
 {%- endif -%}
 {%- if tools -%}
-    {%- set ns.system_prompt = ns.system_prompt + ("\n\n" if ns.system_prompt else "") + "You may call one or more functions to assist with the user query.\n\n<tools>" -%}
+    {%- set ns.system_prompt = ns.system_prompt + ("\n" if ns.system_prompt else "") + "List of tools: [" -%}
     {%- for tool in tools -%}
-        {%- set ns.system_prompt = ns.system_prompt + "\n" + (tool if tool is string else (tool | tojson)) -%}
+        {%- set ns.system_prompt = ns.system_prompt + (tool if tool is string else (tool | tojson)) -%}
+        {%- if not loop.last -%}
+            {%- set ns.system_prompt = ns.system_prompt + ", " -%}
+        {%- endif -%}
     {%- endfor -%}
-    {%- set ns.system_prompt = ns.system_prompt + "\n</tools>\n\nFor each function call, return a JSON object with name and arguments inside <tool_call> tags:\n<tool_call>\n{\"name\":\"function_name\",\"arguments\":{\"argument_name\":\"value\"}}\n</tool_call>" -%}
+    {%- set ns.system_prompt = ns.system_prompt + "]\nTo call a tool, return JSON inside <tool_call> and </tool_call>, for example <tool_call>{\"name\":\"function_name\",\"arguments\":{\"argument_name\":\"value\"}}</tool_call>." -%}
 {%- endif -%}
 {%- if ns.system_prompt -%}
     {{- "<|im_start|>system\n" + ns.system_prompt + "<|im_end|>\n" -}}
@@ -58,14 +61,20 @@
         {{- content -}}
         {%- if message.tool_calls and message.tool_calls is iterable and message.tool_calls is not mapping -%}
             {%- for tool_call in message.tool_calls -%}
-                {%- set function = tool_call.function if tool_call.function is defined else tool_call -%}
-                {{- "\n<tool_call>\n{\"name\":" + (function.name | tojson) + ",\"arguments\":" -}}
-                {%- if function.arguments is string -%}
-                    {{- function.arguments -}}
+                {%- if tool_call.function is defined -%}
+                    {%- set tool_name = tool_call.function.name -%}
+                    {%- set tool_arguments = tool_call.function.arguments -%}
                 {%- else -%}
-                    {{- function.arguments | tojson -}}
+                    {%- set tool_name = tool_call.name -%}
+                    {%- set tool_arguments = tool_call.arguments -%}
                 {%- endif -%}
-                {{- "}\n</tool_call>" -}}
+                {{- "<tool_call>{\"name\":" + (tool_name | tojson) + ",\"arguments\":" -}}
+                {%- if tool_arguments is string -%}
+                    {{- tool_arguments -}}
+                {%- else -%}
+                    {{- tool_arguments | tojson -}}
+                {%- endif -%}
+                {{- "}</tool_call>" -}}
             {%- endfor -%}
         {%- endif -%}
         {{- "<|im_end|>\n" -}}

@@ -12,8 +12,8 @@ tool_calling:
   formats:
     - name: json
       tokens:
-        start: "<tool_call>\n"
-        end: "\n</tool_call>"
+        start: "<tool_call>"
+        end: "</tool_call>"
   result_tokens:
     start: "<tool_response>\n"
     end: "\n</tool_response>"
