@@ -20,6 +20,16 @@
 {%- if reasoning -%}
     {{- " Structure responses with <think> reasoning followed by the final answer." -}}
 {%- endif -%}
+{%- if tools -%}
+    {{- "\nList of tools: [" -}}
+    {%- for tool in tools -%}
+        {{- tool if tool is string else (tool | tojson) -}}
+        {%- if not loop.last -%}
+            {{- ", " -}}
+        {%- endif -%}
+    {%- endfor -%}
+    {{- "]\nTo call a tool, return JSON inside <tool_call> and </tool_call>, for example <tool_call>{\"name\":\"function_name\",\"arguments\":{\"argument_name\":\"value\"}}</tool_call>." -}}
+{%- endif -%}
 {%- for message in messages -%}
     {%- set role = "assistant" if message.role == "agent" else message.role -%}
     {%- if role == "system" or role == "developer" -%}
@@ -33,9 +43,28 @@
     {%- elif role == "user" -%}
         {{- "<|im_start|>user<|im_sep|>" + render_content(message.content) + "<|im_end|>" -}}
     {%- elif role == "assistant" -%}
-        {{- "<|im_start|>assistant<|im_sep|>" + render_content(message.content) + "<|im_end|>" -}}
+        {{- "<|im_start|>assistant<|im_sep|>" + render_content(message.content) -}}
+        {%- if message.tool_calls and message.tool_calls is iterable and message.tool_calls is not mapping -%}
+            {%- for tool_call in message.tool_calls -%}
+                {%- if tool_call.function is defined -%}
+                    {%- set tool_name = tool_call.function.name -%}
+                    {%- set tool_arguments = tool_call.function.arguments -%}
+                {%- else -%}
+                    {%- set tool_name = tool_call.name -%}
+                    {%- set tool_arguments = tool_call.arguments -%}
+                {%- endif -%}
+                {{- "<tool_call>{\"name\":" + (tool_name | tojson) + ",\"arguments\":" -}}
+                {%- if tool_arguments is string -%}
+                    {{- tool_arguments -}}
+                {%- else -%}
+                    {{- tool_arguments | tojson -}}
+                {%- endif -%}
+                {{- "}</tool_call>" -}}
+            {%- endfor -%}
+        {%- endif -%}
+        {{- "<|im_end|>" -}}
     {%- elif role == "tool" -%}
-        {{- "<|im_start|>user<|im_sep|>" + render_content(message.content) + "<|im_end|>" -}}
+        {{- "<|im_start|>user<|im_sep|><tool_response>\n" + render_content(message.content) + "\n</tool_response><|im_end|>" -}}
     {%- endif -%}
 {%- endfor -%}
 {%- if add_generation_prompt -%}
