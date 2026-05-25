@@ -1,5 +1,6 @@
 {
     "template_type": "granite_switch",
+    "model_types": ["granite_switch", "granite"],
     "begin_of_text": "",
     "end_of_message": "<|end_of_text|>\n",
     "end_of_sequence": "<|end_of_text|>",
