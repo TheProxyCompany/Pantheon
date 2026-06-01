@@ -1,0 +1,24 @@
+# Token ids are assigned by the Proxy I tokenizer build when Harmony protocol
+# tokens are added and warmed. Keep this map empty until those ids are real.
+tokens: {}
+
+default:
+  do_sample: true
+  temperature: 0.8
+  top_p: 0.95
+  top_k: -1
+  min_p: 0.0
+
+recommended:
+  do_sample: true
+  temperature: 0.8
+  top_p: 0.95
+  top_k: -1
+  min_p: 0.0
+
+deterministic:
+  do_sample: false
+  temperature: 0.0
+  top_p: 1.0
+  top_k: -1
+  min_p: 0.0
