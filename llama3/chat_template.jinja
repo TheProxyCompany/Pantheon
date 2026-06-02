@@ -60,7 +60,9 @@
         {%- endfor -%}
     {%- endif -%}
 
-    {{- end_of_message -}}
+    {%- if tc_tokens is none or tc_tokens.end != end_of_message -%}
+        {{- end_of_message -}}
+    {%- endif -%}
 {%- endmacro -%}
 {# ------------------------------------------------------------------------ #}
 {# Macro: render_tool_result                                                #}
