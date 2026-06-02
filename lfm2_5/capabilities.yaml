@@ -6,11 +6,11 @@ features:
   - tool_use
   - streaming
 
-context_length: 32768
+context_length: 128000
 
 thinking:
   native: true
-  default: false
+  required: true
   tokens:
     start: "<think>"
     end: "</think>"
@@ -18,10 +18,16 @@ thinking:
 tool_calling:
   native: true
   formats:
-    - name: json
+    - name: pythonic
       tokens:
-        start: "<tool_call>"
-        end: "</tool_call>"
+        section_start: "<|tool_call_start|>["
+        section_end: "]<|tool_call_end|>"
   result_tokens:
     start: "<tool_response>\n"
     end: "\n</tool_response>"
+
+tokens:
+  bos_token_id: 124894
+  pad_token_id: 124893
+  eos_token_ids:
+    - 124900

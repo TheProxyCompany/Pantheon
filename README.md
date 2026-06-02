@@ -6,14 +6,17 @@ Model profiles for [Orchard](https://github.com/TheProxyCompany): chat templates
 
 Every model has its own prompt format, special tokens, and behavioral quirks. Hugging Face standardized the basics — `tokenizer_config.json` for special tokens, `chat_template` as inline Jinja for prompt format. But HF has no way to declare what a model can *do*. There's no capability manifest. No structured representation of tool calling format. No declaration of whether a model supports thinking, vision, or structured output. It's all baked into Jinja as imperative code, or left implicit.
 
-This repo fills that gap. Each model profile is four files:
+This repo fills that gap. Each model profile contains model data plus its prompt
+template:
 
 - **`control_tokens.json`** — Special tokens that delimit turns and sequences (BOS, EOS, role tags).
 - **`capabilities.yaml`** — What the model can do and how to activate it (thinking, tool calling, vision, etc.).
 - **`generation.yaml`** — Model generation defaults and recommended sampling profiles.
-- **`chat_template.jinja`** — Prompt assembly using tokens, capabilities, and messages.
+- **`chat_template.jinja`** — The prompt assembly template for the model.
+- **`templates/*.jinja`** — Optional prompt assembly variants when one model version needs multiple templates.
 
-Control tokens are the atoms. Capabilities declare behaviors. Generation declares sampling policy. The chat template assembles them into a prompt.
+Control tokens are the atoms. Capabilities declare behaviors. Generation declares
+sampling policy. Template variants assemble them into prompts.
 
 ## Structure
 
@@ -22,7 +25,9 @@ Control tokens are the atoms. Capabilities declare behaviors. Generation declare
 ├── control_tokens.json     # Special tokens — BOS, EOS, role tags
 ├── capabilities.yaml       # What the model can do and how to activate it
 ├── generation.yaml         # Default, recommended, and deterministic sampling configs
-└── chat_template.jinja     # Prompt format using tokens, capabilities, and messages
+├── chat_template.jinja     # Default prompt format
+└── templates/              # Optional, only for multiple prompt formats
+    └── reasoning.jinja
 ```
 
 See `_example/` for a fully documented reference implementation.
@@ -76,7 +81,7 @@ Models use different formats for tool calls. The `formats` field declares which 
 
 | Format | Payload | Models |
 |--------|---------|--------|
-| `json` | `{"name": "fn", "parameters": {...}}` | Llama 3.x, Phi-4, Granite, Gemma, most models |
+| `json` | `{"name": "fn", "parameters": {...}}` | Llama 3.x, Granite, Gemma, most models |
 | `python` | `tool_name.call(query="...")` | Llama 3.1 (built-in tools) |
 | `hermes` | JSON object in XML tags | Hermes 2/3, Qwen 2.5, Granite 4.0 |
 | `pythonic` | `[fn(arg="val")]` | Llama 4, OLMo 3 |
@@ -110,7 +115,7 @@ Common sampling keys are `temperature`, `top_p`, `top_k`, `min_p`, `presence_pen
 
    | Field | Required | Description |
    |-------|----------|-------------|
-   | `template_type` | Yes | Model family identifier (e.g., `"llama"`, `"gemma"`) |
+   | `template_type` | No | Template variant, usually `default`; use named variants only with `templates/*.jinja` |
    | `model_types` | No | Model type strings that should load this profile |
    | `begin_of_text` | Yes | Beginning-of-sequence token |
    | `end_of_message` | Yes | End-of-turn token |
@@ -127,7 +132,9 @@ Common sampling keys are `temperature`, `top_p`, `top_k`, `min_p`, `presence_pen
 
 5. **Edit `chat_template.jinja`**
 
-   Customize the Jinja2 template for the model's prompt format. The template receives:
+   Customize the Jinja2 template for the model's prompt format. Add named
+   variants such as `templates/reasoning.jinja` only when one model version
+   needs multiple prompt formats. The template receives:
    - All `control_tokens.json` fields as variables (`begin_of_text`, `roles`, etc.)
    - All `capabilities.yaml` data as the `capabilities` object (e.g., `capabilities.thinking.tokens.start`)
    - Runtime variables: `interactions`, `add_generation_prompt`, `prefill`, `reasoning`, `task`, `tools`
