@@ -1,0 +1,50 @@
+modalities:
+  - text
+  - image
+  - audio
+
+features:
+  - thinking
+  - tool_use
+  - vision
+  - audio
+  - streaming
+
+context_length: 262144
+
+thinking:
+  native: true
+  tokens:
+    enable: "<|think|>"
+    start: "<|channel>thought\n"
+    end: "<channel|>"
+    suppress: "<|channel>thought\n<channel|>"
+
+vision:
+  native: true
+  tokens:
+    start: "<|image>"
+    end: "<image|>"
+    placeholder: "<|image|>"
+
+audio:
+  native: true
+  placeholders:
+    audio: "<|audio|>"
+  tokens:
+    start: "<|audio>"
+    end: "<audio|>"
+    placeholder: "<|audio|>"
+
+tool_calling:
+  native: true
+  formats:
+    - name: gemma4
+      tokens:
+        start: "<|tool_call>"
+        end: "<tool_call|>"
+        definition_start: "<|tool>"
+        definition_end: "<tool|>"
+  result_tokens:
+    start: "<|tool_response>"
+    end: "<tool_response|>"
