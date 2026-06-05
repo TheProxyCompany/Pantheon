@@ -1,0 +1,36 @@
+modalities:
+  - text
+  - audio
+
+features:
+  - audio_generation
+  - voice_clone
+  - streaming
+
+context_length: 32768
+
+audio_generation:
+  native: true
+  tasks:
+    - text_to_speech
+    - voice_clone
+  output:
+    type: audio
+    mime_type: audio/wav
+    sample_rate: 24000
+    codec: qwen3_tts_tokenizer_12hz
+
+audio:
+  native: true
+  output:
+    mime_type: audio/wav
+    sample_rate: 24000
+
+voice_clone:
+  native: true
+  inputs:
+    - text
+    - audio
+  output:
+    type: audio
+    mime_type: audio/wav

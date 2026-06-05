@@ -1,0 +1,28 @@
+tokens:
+  eos_token_ids:
+    - 151643
+    - 151645
+
+default:
+  do_sample: false
+  temperature: 0.0
+  top_p: 1.0
+  top_k: -1
+  min_p: 0.0
+  max_new_tokens: 128
+
+recommended:
+  do_sample: false
+  temperature: 0.0
+  top_p: 1.0
+  top_k: -1
+  min_p: 0.0
+  max_new_tokens: 128
+
+deterministic:
+  do_sample: false
+  temperature: 0.0
+  top_p: 1.0
+  top_k: -1
+  min_p: 0.0
+  max_new_tokens: 128

@@ -1,0 +1,29 @@
+{
+  "template_type": "parakeet_tdt",
+  "model_types": ["parakeet_tdt"],
+  "begin_of_text": "",
+  "end_of_message": "",
+  "end_of_sequence": "",
+  "roles": {
+    "system": {
+      "role_name": "system",
+      "role_start_tag": "",
+      "role_end_tag": ""
+    },
+    "agent": {
+      "role_name": "assistant",
+      "role_start_tag": "",
+      "role_end_tag": ""
+    },
+    "user": {
+      "role_name": "user",
+      "role_start_tag": "",
+      "role_end_tag": ""
+    },
+    "tool": {
+      "role_name": "tool",
+      "role_start_tag": "",
+      "role_end_tag": ""
+    }
+  }
+}

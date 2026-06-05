@@ -1,0 +1,14 @@
+{%- set messages = messages if messages is defined else interactions -%}
+{%- for message in messages -%}
+  {%- if message.content is string -%}
+    {{- message.content -}}
+  {%- elif message.content is iterable and message.content is not mapping -%}
+    {%- for item in message.content -%}
+      {%- if item.text is defined -%}
+        {{- item.text -}}
+      {%- elif item.type is defined and item.type in ["text", "input_text"] -%}
+        {{- item.text | default("") -}}
+      {%- endif -%}
+    {%- endfor -%}
+  {%- endif -%}
+{%- endfor -%}

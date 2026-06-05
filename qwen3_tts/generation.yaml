@@ -1,0 +1,40 @@
+tokens:
+  bos_token_id: 151672
+  pad_token_id: 151671
+  eos_token_ids:
+    - 151673
+    - 151645
+
+default:
+  do_sample: true
+  temperature: 0.9
+  top_p: 1.0
+  top_k: 50
+  min_p: 0.0
+  repetition_penalty: 1.05
+  max_new_tokens: 8192
+  subtalker_dosample: true
+  subtalker_temperature: 0.9
+  subtalker_top_p: 1.0
+  subtalker_top_k: 50
+
+recommended:
+  do_sample: true
+  temperature: 0.9
+  top_p: 1.0
+  top_k: 50
+  min_p: 0.0
+  repetition_penalty: 1.05
+  max_new_tokens: 8192
+  subtalker_dosample: true
+  subtalker_temperature: 0.9
+  subtalker_top_p: 1.0
+  subtalker_top_k: 50
+
+deterministic:
+  do_sample: false
+  temperature: 0.0
+  top_p: 1.0
+  top_k: -1
+  min_p: 0.0
+  repetition_penalty: 1.05
