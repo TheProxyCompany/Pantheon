@@ -73,7 +73,7 @@
 {# ------------------------------------------------------------------------ #}
 {%- macro render_tool_result(interaction) -%}
     {{- render_role_header('tool') -}}
-    {{- "Tool result from the previous call. Use this output to answer the user:\n```tool_output\n" -}}
+    {{- "Tool result:\n```tool_output\n" -}}
     {{- render_content(interaction) -}}
     {{- "\n```" -}}
     {{- end_of_message -}}
