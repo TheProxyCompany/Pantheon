@@ -1,0 +1,25 @@
+modalities:
+  - text
+  - image
+
+features:
+  - image_generation
+
+context_length: 512
+
+image_generation:
+  native: true
+  tasks:
+    - text_to_image
+  output:
+    type: image
+    mime_type: image/png
+  resolution:
+    min: 256
+    max: 2048
+    multiple_of: 16
+
+image:
+  native: true
+  output:
+    mime_type: image/png
