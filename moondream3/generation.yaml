@@ -1,14 +1,22 @@
+# Moondream 3 generation settings.
+#
+# Source of truth: moondream3 modeling code defaults
+# (https://huggingface.co/moondream/moondream3-preview):
+#   DEFAULT_TEMPERATURE = 0.5, DEFAULT_TOP_P = 0.9
+#
+# (Prior top_p: 1.0 did not match the model's shipped default of 0.9.)
+
 default:
   do_sample: true
   temperature: 0.5
-  top_p: 1.0
+  top_p: 0.9
   top_k: -1
   min_p: 0.0
 
 recommended:
   do_sample: true
   temperature: 0.5
-  top_p: 1.0
+  top_p: 0.9
   top_k: -1
   min_p: 0.0
 

@@ -1,20 +1,38 @@
+# LFM2.5-8B-A1B generation settings.
+#
+# Source of truth: Liquid AI model card (https://huggingface.co/LiquidAI/LFM2.5-8B-A1B):
+#   "We recommend: temperature: 0.2, top_k: 80, repetition_penalty: 1.05"
+#
+# LFM2.5-8B-A1B is a reasoning-only model — it always emits an explicit chain of
+# thought before its answer. Without repetition_penalty it falls into a decode
+# loop during reasoning and never emits its stop token. The 1.05 penalty is the
+# author-recommended loop-breaker and is required for this model to terminate.
+#
+# (Prior values temperature: 0.7 / top_p: 0.9 / top_k: -1 were placeholders, not
+# the model authors' actual recommendation.)
+
 default:
   do_sample: true
-  temperature: 0.7
-  top_p: 0.9
-  top_k: -1
+  temperature: 0.2
+  top_p: 1.0
+  top_k: 80
   min_p: 0.0
+  repetition_penalty: 1.05
 
 recommended:
   do_sample: true
-  temperature: 0.7
-  top_p: 0.9
-  top_k: -1
+  temperature: 0.2
+  top_p: 1.0
+  top_k: 80
   min_p: 0.0
+  repetition_penalty: 1.05
 
+# Greedy/reproducible lane. Keeps repetition_penalty because a reasoning-only
+# model loops under pure greedy decoding (temperature 0, no penalty).
 deterministic:
   do_sample: false
   temperature: 0.0
   top_p: 1.0
   top_k: -1
   min_p: 0.0
+  repetition_penalty: 1.05

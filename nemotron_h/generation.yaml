@@ -1,3 +1,11 @@
+# Nemotron-H generation settings.
+#
+# Source of truth: NVIDIA Nemotron-H reasoning model card
+# (https://huggingface.co/nvidia/Nemotron-H-8B-Reasoning-128K):
+#   "We recommend setting temperature to 0.6, top_p to 0.95 ... for reasoning."
+#
+# (Prior temperature: 1.0 did not match NVIDIA's recommendation.)
+
 tokens:
   bos_token_id: 1
   pad_token_id: 0
@@ -6,14 +14,14 @@ tokens:
 
 default:
   do_sample: true
-  temperature: 1.0
+  temperature: 0.6
   top_p: 0.95
   top_k: -1
   min_p: 0.0
 
 recommended:
   do_sample: true
-  temperature: 1.0
+  temperature: 0.6
   top_p: 0.95
   top_k: -1
   min_p: 0.0

@@ -1,3 +1,13 @@
+# Olmo-Hybrid (7B instruct) generation settings.
+#
+# Source of truth: AI2 Olmo-Hybrid instruct model card
+# (https://huggingface.co/allenai/Olmo-Hybrid-Instruct-DPO-7B):
+#   instruct usage runs SamplingParams(temperature=0.6, top_p=0.95)
+# The shipped generation_config.json declares no sampling params, so the model's
+# bare default is greedy decoding.
+#
+# (Prior temperature: 0.7 / top_p: 0.9 were generic placeholders matching no AI2 source.)
+
 tokens:
   pad_token_id: 100277
   eos_token_ids:
@@ -5,16 +15,16 @@ tokens:
     - 100265
 
 default:
-  do_sample: true
-  temperature: 0.7
-  top_p: 0.9
+  do_sample: false
+  temperature: 0.0
+  top_p: 1.0
   top_k: -1
   min_p: 0.0
 
 recommended:
   do_sample: true
-  temperature: 0.7
-  top_p: 0.9
+  temperature: 0.6
+  top_p: 0.95
   top_k: -1
   min_p: 0.0
 

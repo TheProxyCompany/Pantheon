@@ -1,3 +1,12 @@
+# LFM2 generation settings.
+#
+# Source of truth: Liquid AI LFM2 model card (https://huggingface.co/LiquidAI/LFM2-1.2B):
+#   "We recommend the following parameters: temperature=0.3, min_p=0.15, repetition_penalty=1.05"
+#
+# (Prior values temperature: 0.7 / top_p: 0.9 / top_k: -1 were generic placeholders, not
+# Liquid's recommendation.) top_p/top_k are left disabled — Liquid constrains sampling via
+# temperature + min_p + repetition_penalty only.
+
 tokens:
   bos_token_id: 1
   pad_token_id: 0
@@ -6,17 +15,19 @@ tokens:
 
 default:
   do_sample: true
-  temperature: 0.7
-  top_p: 0.9
+  temperature: 0.3
+  top_p: 1.0
   top_k: -1
-  min_p: 0.0
+  min_p: 0.15
+  repetition_penalty: 1.05
 
 recommended:
   do_sample: true
-  temperature: 0.7
-  top_p: 0.9
+  temperature: 0.3
+  top_p: 1.0
   top_k: -1
-  min_p: 0.0
+  min_p: 0.15
+  repetition_penalty: 1.05
 
 deterministic:
   do_sample: false
