@@ -75,6 +75,13 @@
     {{- "<|im_start|>assistant\n" -}}
     {%- if enable_thinking -%}
         {{- "<think>\n" -}}
+    {%- else -%}
+        {#- The upstream Trinity template always opens "<think>\n"; there is no reply mode
+            without a think block. Measured on Trinity-Mini-4bit (2026-09-04, greedy):
+            an empty block ("<think>\n\n</think>\n\n", "<think>\n</think>\n", "<think></think>")
+            makes the model reason aloud in the visible reply; a bare assistant turn yields
+            nonsense; the closing marker alone yields direct answers. -#}
+        {{- "</think>\n\n" -}}
     {%- endif -%}
 {%- endif -%}
 
