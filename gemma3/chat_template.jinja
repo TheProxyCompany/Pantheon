@@ -34,6 +34,16 @@
     {%- endif -%}
 {%- endmacro -%}
 {# ------------------------------------------------------------------------ #}
+{# Macro: image_part                                                        #}
+{# An image as the model was trained to see it. The Hugging Face processor   #}
+{# replaces <start_of_image> with a blank line, <start_of_image>, the soft   #}
+{# tokens, <end_of_image> and another blank line. The engine puts the soft   #}
+{# tokens between the two delimiters; the blank lines have to be text.       #}
+{# ------------------------------------------------------------------------ #}
+{%- macro image_part() -%}
+    {{- "\n\n" + capabilities.vision.tokens.start + capabilities.vision.tokens.end + "\n\n" -}}
+{%- endmacro -%}
+{# ------------------------------------------------------------------------ #}
 {# Macro: render_content                                                    #}
 {# ------------------------------------------------------------------------ #}
 {%- macro render_content(content) -%}
@@ -42,7 +52,7 @@
     {%- else -%}
         {%- for item in content -%}
             {%- if item['type'] == 'image' -%}
-                {{- capabilities.vision.tokens.start }}{{ capabilities.vision.tokens.end -}}
+                {{- image_part() -}}
             {%- else -%}
                 {{- item | safe -}}
             {%- endif -%}
@@ -125,7 +135,7 @@
         {%- else -%}
             {%- for content in interactions[0]['content'] -%}
                 {%- if content['type'] == 'image' -%}
-                    {{- capabilities.vision.tokens.start }}{{ capabilities.vision.tokens.end -}}
+                    {{- image_part() -}}
                 {%- else -%}
                     {{- content | safe -}}
                 {%- endif -%}
