@@ -5,6 +5,13 @@
 {%- set channels = frame.channels -%}
 {%- set tool_tokens = capabilities.tool_calling.formats[0].tokens -%}
 
+{#- What the model sees just before it generates, for the turn being asked for and for
+    every earlier turn alike. Harmony has no thinking switch here: the model opens its own
+    channels, so the flag changes nothing. -#}
+{%- macro generation_prompt(thinking) -%}
+    {{- markers.start + "assistant" -}}
+{%- endmacro -%}
+
 {%- macro render_content(content) -%}
     {%- if content is string -%}
         {{- content -}}
@@ -112,26 +119,32 @@
 {%- set last_tool_call = namespace(names=[], ids=[]) -%}
 {%- for message in loop_messages -%}
     {%- set role = "assistant" if message.role == "agent" else message.role -%}
+    {%- if role == "assistant" -%}
+        {#- A tool result is named after its call, however the calling turn renders below. -#}
+        {%- set last_tool_call.names = [] -%}
+        {%- set last_tool_call.ids = [] -%}
+        {%- for tool_call in message.tool_calls or [] -%}
+            {%- set function = tool_call.function if tool_call.function is defined else tool_call -%}
+            {%- set last_tool_call.names = last_tool_call.names + [function.name] -%}
+            {%- set last_tool_call.ids = last_tool_call.ids + [tool_call.id if tool_call.id is defined else none] -%}
+        {%- endfor -%}
+    {%- endif -%}
     {%- if role == "system" or role == "developer" -%}
         {{- markers.start + "developer" + markers.message + "# Instructions\n\n" + render_content(message.content) + markers.end -}}
+    {%- elif role == "assistant" and message.generated is defined -%}
+        {#- A reply this model generated: `generated` stands for its exact token ids, which
+            stop short of the stop token: call after a tool call, otherwise end. -#}
+        {{- generation_prompt(message.generated_thinking) + message.generated + (markers.call if message.tool_calls else markers.end) -}}
     {%- elif role == "assistant" -%}
         {%- set content = render_content(message.content) -%}
+        {#- Reasoning stays in the conversation on every turn. -#}
+        {%- set reasoning_text = message.reasoning_content or message.reasoning or (message.thinking if message.thinking is string else none) -%}
+        {%- if reasoning_text -%}
+            {{- markers.start + "assistant" + markers.channel + channels.analysis + markers.message + reasoning_text + markers.end -}}
+        {%- elif content and message.tool_calls -%}
+            {{- markers.start + "assistant" + markers.channel + channels.analysis + markers.message + content + markers.end -}}
+        {%- endif -%}
         {%- if message.tool_calls -%}
-            {%- set future_final = namespace(found=false) -%}
-            {%- for future_message in loop_messages[loop.index:] -%}
-                {%- set future_role = "assistant" if future_message.role == "agent" else future_message.role -%}
-                {%- if future_role == "assistant" and not future_message.tool_calls -%}
-                    {%- set future_final.found = true -%}
-                {%- endif -%}
-            {%- endfor -%}
-            {%- set thinking_text = message.thinking if message.thinking is defined else (message.reasoning if message.reasoning is defined else message.reasoning_content) -%}
-            {%- if thinking_text and not future_final.found -%}
-                {{- markers.start + "assistant" + markers.channel + channels.analysis + markers.message + thinking_text + markers.end -}}
-            {%- elif content and not future_final.found -%}
-                {{- markers.start + "assistant" + markers.channel + channels.analysis + markers.message + content + markers.end -}}
-            {%- endif -%}
-            {%- set last_tool_call.names = [] -%}
-            {%- set last_tool_call.ids = [] -%}
             {%- for tool_call in message.tool_calls -%}
                 {%- set function = tool_call.function if tool_call.function is defined else tool_call -%}
                 {{- markers.start + "assistant" + markers.channel + channels.commentary + tool_tokens.recipient_prefix + function.name + tool_tokens.constraint_prefix + markers.constrain + tool_tokens.constraint + markers.message -}}
@@ -141,19 +154,11 @@
                     {{- function.arguments | tojson -}}
                 {%- endif -%}
                 {{- markers.call -}}
-                {%- set last_tool_call.names = last_tool_call.names + [function.name] -%}
-                {%- set last_tool_call.ids = last_tool_call.ids + [tool_call.id if tool_call.id is defined else none] -%}
             {%- endfor -%}
         {%- elif loop.last and not add_generation_prompt -%}
-            {%- set thinking_text = message.thinking if message.thinking is defined else (message.reasoning if message.reasoning is defined else message.reasoning_content) -%}
-            {%- if thinking_text -%}
-                {{- markers.start + "assistant" + markers.channel + channels.analysis + markers.message + thinking_text + markers.end -}}
-            {%- endif -%}
             {{- markers.start + "assistant" + markers.channel + channels.final + markers.message + content + markers.return -}}
         {%- else -%}
             {{- markers.start + "assistant" + markers.channel + channels.final + markers.message + content + markers.end -}}
-            {%- set last_tool_call.names = [] -%}
-            {%- set last_tool_call.ids = [] -%}
         {%- endif -%}
     {%- elif role == "tool" -%}
         {%- set matched_tool = namespace(name=none) -%}
@@ -180,7 +185,7 @@
 {%- endfor -%}
 
 {%- if add_generation_prompt -%}
-    {{- markers.start + "assistant" -}}
+    {{- generation_prompt(reasoning) -}}
 {%- endif -%}
 
 {%- if prefill is not none -%}

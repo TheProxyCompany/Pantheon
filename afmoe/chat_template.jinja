@@ -1,6 +1,12 @@
 {%- set messages = messages if messages is defined else interactions -%}
 {%- set enable_thinking = reasoning if enable_thinking is not defined else enable_thinking -%}
 
+{#- What the model sees just before it generates, for the turn being asked for and for
+    every earlier turn alike. -#}
+{%- macro generation_prompt(thinking) -%}
+    {{- "<|im_start|>assistant\n" + ("<think>\n" if thinking else "") -}}
+{%- endmacro -%}
+
 {%- macro render_content(content) -%}
     {%- if content is string -%}
         {{- content -}}
@@ -41,12 +47,24 @@
     {%- if role == "system" -%}
     {%- elif role == "user" -%}
         {{- "<|im_start|>user\n" + (render_content(message.content) | trim) + "<|im_end|>\n" -}}
+    {%- elif role == "assistant" and message.generated is defined -%}
+        {#- A reply this model generated: `generated` stands for its exact token ids. -#}
+        {{- generation_prompt(message.generated_thinking) + message.generated + "<|im_end|>\n" -}}
     {%- elif role == "assistant" -%}
         {%- set content = render_content(message.content) | trim -%}
+        {#- Reasoning stays in the conversation on every turn. -#}
+        {%- set reasoning_text = message.reasoning_content or message.reasoning or (message.thinking if message.thinking is string else none) -%}
+        {%- if not reasoning_text and "</think>" in content -%}
+            {%- set reasoning_text = content.split("</think>")[0].split("<think>")[-1] -%}
+        {%- endif -%}
         {%- if "</think>" in content -%}
             {%- set content = content.split("</think>")[-1].lstrip("\n") -%}
         {%- endif -%}
-        {{- "<|im_start|>assistant\n" + content -}}
+        {%- if reasoning_text -%}
+            {{- generation_prompt(true) + (reasoning_text | trim) + "\n</think>\n\n" + content -}}
+        {%- else -%}
+            {{- generation_prompt(false) + content -}}
+        {%- endif -%}
         {%- if message.tool_calls and message.tool_calls is iterable and message.tool_calls is not mapping -%}
             {%- for tool_call in message.tool_calls -%}
                 {%- set function = tool_call.function if tool_call.function is defined else tool_call -%}
@@ -72,10 +90,7 @@
 {%- endfor -%}
 
 {%- if add_generation_prompt -%}
-    {{- "<|im_start|>assistant\n" -}}
-    {%- if enable_thinking -%}
-        {{- "<think>\n" -}}
-    {%- endif -%}
+    {{- generation_prompt(enable_thinking) -}}
 {%- endif -%}
 
 {%- if prefill is not none -%}

@@ -21,6 +21,15 @@
     {%- endif -%}
 {%- endmacro -%}
 {# ------------------------------------------------------------------------ #}
+{# Macro: generation_prompt                                                 #}
+{# What the model sees just before it generates, for the turn being asked   #}
+{# for and for every earlier turn alike. Llama 3 has no thinking mode, so   #}
+{# it is the same with thinking on or off.                                  #}
+{# ------------------------------------------------------------------------ #}
+{%- macro generation_prompt(thinking) -%}
+    {{- render_role_header('agent') -}}
+{%- endmacro -%}
+{# ------------------------------------------------------------------------ #}
 {# Macro: render_content                                                    #}
 {# ------------------------------------------------------------------------ #}
 {%- macro render_content(content) -%}
@@ -37,7 +46,11 @@
 {# Renders individual interactions using model-specific control tokens.     #}
 {# ------------------------------------------------------------------------ #}
 {%- macro render_interaction(interaction) -%}
-    {{- render_role_header(interaction['role']) -}}
+    {%- if interaction['role'] in ['agent', 'assistant'] -%}
+        {{- generation_prompt(false) -}}
+    {%- else -%}
+        {{- render_role_header(interaction['role']) -}}
+    {%- endif -%}
     {{- render_content(interaction['content']) -}}
     {{- end_of_sequence -}}
 {%- endmacro -%}
@@ -46,7 +59,7 @@
 {# Renders an assistant turn containing a tool call in history.             #}
 {# ------------------------------------------------------------------------ #}
 {%- macro render_tool_call(interaction) -%}
-    {{- render_role_header('agent') -}}
+    {{- generation_prompt(false) -}}
 
     {%- if interaction['content'] is string and interaction['content'] -%}
         {{- interaction['content'] | safe + "\n" -}}
@@ -105,6 +118,9 @@
 {%- for interaction in interactions -%}
     {%- if has_system and loop.first -%}
         {# Already rendered system message above #}
+    {%- elif interaction['role'] in ['agent', 'assistant'] and interaction.generated is defined -%}
+        {# A reply this model generated: `generated` stands for its exact token ids. #}
+        {{- generation_prompt(interaction.generated_thinking) + interaction.generated + (end_of_message if interaction.tool_calls else end_of_sequence) -}}
     {%- elif interaction.tool_calls is defined and interaction.tool_calls -%}
         {{- render_tool_call(interaction) -}}
     {%- elif interaction['role'] == 'tool' or (interaction.tool_call_id is defined and interaction.tool_call_id) -%}
@@ -115,7 +131,7 @@
 {%- endfor -%}
 {# Generation prompt #}
 {%- if add_generation_prompt -%}
-    {{- render_role_header('agent') -}}
+    {{- generation_prompt(reasoning) -}}
 {%- endif -%}
 {%- if prefill is not none -%}
     {{- prefill -}}
