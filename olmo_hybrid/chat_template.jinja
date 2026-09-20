@@ -1,4 +1,11 @@
 {%- set messages = messages if messages is defined else interactions -%}
+
+{#- What the model sees just before it generates, for the turn being asked for and for
+    every earlier turn alike. It is the same with thinking on or off. -#}
+{%- macro generation_prompt(thinking) -%}
+    {{- "<|im_start|>assistant\n" -}}
+{%- endmacro -%}
+
 {%- macro render_content(content) -%}
     {%- if content is string -%}
         {{- content -}}
@@ -17,7 +24,8 @@
     {%- endif -%}
 {%- endmacro -%}
 
-{%- set has_system = messages | selectattr("role", "equalto", "system") | list | length > 0 -%}
+{#- Only the first message decides: a system message added later must not move what came before it. -#}
+{%- set has_system = messages and messages[0].role == "system" -%}
 {%- if not has_system -%}
     {{- "<|im_start|>system\nYou are a helpful function-calling AI assistant. " -}}
     {%- if tools -%}
@@ -38,8 +46,11 @@
         {{- "<|im_end|>\n" -}}
     {%- elif role == "user" -%}
         {{- "<|im_start|>user\n" + render_content(message.content) + "<|im_end|>\n" -}}
+    {%- elif role == "assistant" and message.generated is defined -%}
+        {#- A reply this model generated: `generated` stands for its exact token ids. -#}
+        {{- generation_prompt(message.generated_thinking) + message.generated + "<|im_end|>\n" -}}
     {%- elif role == "assistant" -%}
-        {{- "<|im_start|>assistant\n" + render_content(message.content) -}}
+        {{- generation_prompt(false) + render_content(message.content) -}}
         {%- if message.tool_calls -%}
             {{- "<function_calls>" -}}
             {%- for tool_call in message.tool_calls -%}
@@ -64,7 +75,7 @@
     {%- endif -%}
 {%- endfor -%}
 {%- if add_generation_prompt -%}
-    {{- "<|im_start|>assistant\n" -}}
+    {{- generation_prompt(reasoning) -}}
 {%- endif -%}
 {%- if prefill is not none -%}
     {{- prefill -}}

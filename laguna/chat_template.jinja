@@ -6,6 +6,11 @@
 {%- if enable_thinking is not defined -%}
     {%- set enable_thinking = reasoning -%}
 {%- endif -%}
+{#- What the model sees just before it generates, for the turn being asked for and for -#}
+{#- every earlier turn alike. -#}
+{%- macro generation_prompt(thinking) -%}
+    {{- "<assistant>" + ("<think>" if thinking else "</think>") -}}
+{%- endmacro -%}
 {%- macro render_content(content) -%}
     {%- if content is string -%}
         {{- content -}}
@@ -56,23 +61,27 @@
     {%- set content = render_content(message.content) -%}
     {%- if role == "user" -%}
         {{- "<user>" + content + "</user>\n" -}}
+    {%- elif role == "assistant" and message.generated is defined -%}
+        {#- A reply this model generated: `generated` stands for its exact token ids. -#}
+        {{- generation_prompt(message.generated_thinking) + message.generated + "</assistant>\n" -}}
     {%- elif role == "assistant" -%}
-        {{- "<assistant>" -}}
-        {#- Reasoning from message.reasoning (vLLM name) or message.reasoning_content, else split from content -#}
+        {#- Reasoning from message.reasoning_content, message.reasoning (vLLM name) or message.thinking, else split from content -#}
         {%- set reasoning_content = '' -%}
-        {%- if message.reasoning is string -%}
-            {%- set reasoning_content = message.reasoning -%}
-        {%- elif message.reasoning_content is string -%}
+        {%- if message.reasoning_content is string -%}
             {%- set reasoning_content = message.reasoning_content -%}
+        {%- elif message.reasoning is string -%}
+            {%- set reasoning_content = message.reasoning -%}
+        {%- elif message.thinking is string -%}
+            {%- set reasoning_content = message.thinking -%}
         {%- elif '</think>' in content -%}
             {%- set reasoning_content = content.split('</think>')[0].split('<think>')[-1] -%}
             {%- set content = content.split('</think>')[-1] -%}
         {%- endif -%}
-        {#- Replay reasoning for all assistant messages when thinking is on; bare </think> when off -#}
-        {%- if enable_thinking -%}
-            {{- '<think>' + reasoning_content + '</think>' -}}
+        {#- Reasoning stays in the conversation on every turn; bare </think> when the message has none -#}
+        {%- if reasoning_content -%}
+            {{- generation_prompt(true) + reasoning_content + '</think>' -}}
         {%- else -%}
-            {{- '</think>' -}}
+            {{- generation_prompt(false) -}}
         {%- endif -%}
         {%- if content -%}
             {{- content -}}
@@ -100,12 +109,7 @@
 {%- endfor -%}
 {#- ───── generation prompt ───── -#}
 {%- if add_generation_prompt -%}
-    {{- "<assistant>" -}}
-    {%- if enable_thinking -%}
-        {{- '<think>' -}}
-    {%- else -%}
-        {{- '</think>' -}}
-    {%- endif -%}
+    {{- generation_prompt(enable_thinking) -}}
 {%- endif -%}
 {%- if prefill is defined and prefill -%}
     {{- prefill -}}

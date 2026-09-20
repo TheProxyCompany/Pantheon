@@ -16,6 +16,12 @@
 {%- if adapter.token and adapter.type == "lora" -%}
     {{- adapter.token -}}
 {%- endif -%}
+{#- What the model sees just before it generates, for the turn being asked for and for
+    every earlier turn alike. It is the same with thinking on or off. -#}
+{%- macro generation_prompt(thinking) -%}
+    {{- "<|start_of_role|>assistant<|end_of_role|>" -}}
+{%- endmacro -%}
+
 {%- macro render_content(content) -%}
     {%- if content is string -%}
         {{- content -}}
@@ -54,8 +60,11 @@
     {%- set role = "assistant" if message.role == "agent" else message.role -%}
     {%- if role == "user" or role == "system" -%}
         {{- "<|start_of_role|>" + role + "<|end_of_role|>" + render_content(message.content) + "<|end_of_text|>\n" -}}
+    {%- elif role == "assistant" and message.generated is defined -%}
+        {#- A reply this model generated: `generated` stands for its exact token ids. -#}
+        {{- generation_prompt(message.generated_thinking) + message.generated + "<|end_of_text|>\n" -}}
     {%- elif role == "assistant" -%}
-        {{- "<|start_of_role|>assistant<|end_of_role|>" + render_content(message.content) -}}
+        {{- generation_prompt(false) + render_content(message.content) -}}
         {%- if message.tool_calls -%}
             {%- for tool_call in message.tool_calls -%}
                 {%- set function = tool_call.function if tool_call.function is defined else tool_call -%}
@@ -73,7 +82,7 @@
     {{- adapter.token -}}
 {%- endif -%}
 {%- if add_generation_prompt -%}
-    {{- "<|start_of_role|>assistant<|end_of_role|>" -}}
+    {{- generation_prompt(reasoning) -}}
 {%- endif -%}
 {%- if prefill is not none -%}
     {{- prefill -}}
