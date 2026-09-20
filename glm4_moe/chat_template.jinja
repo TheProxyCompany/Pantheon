@@ -79,13 +79,15 @@
     {%- endif %}
 {%- endif %}
 {%- for message in loop_messages %}
+    {#- The client sends the assistant role as `agent`. -#}
+    {%- set role = "assistant" if message.role == "agent" else message.role %}
     {#- Reasoning stays in the conversation on every turn. #}
     {%- set reasoning_text = message.reasoning_content or message.reasoning or (message.thinking if message.thinking is string else none) %}
-    {%- if message.role == "assistant" and message.generated is defined %}
+    {%- if role == "assistant" and message.generated is defined %}
         {#- A reply this model generated: `generated` stands for its exact token ids. #}
         {{- generation_prompt(message.generated_thinking) + message.generated + '<|im_end|>\n' }}
-    {%- elif message.role == "assistant" and message.tool_calls is defined and message.tool_calls is iterable and message.tool_calls | length > 0 %}
-        {{- '<|im_start|>' + message.role }}
+    {%- elif role == "assistant" and message.tool_calls is defined and message.tool_calls is iterable and message.tool_calls | length > 0 %}
+        {{- '<|im_start|>' + role }}
         {%- if reasoning_text -%}
             {{ '\n<think>' + reasoning_text.strip() + '</think>' }}
         {%- elif message.reasoning_content is defined and message.content is string -%}
@@ -110,9 +112,9 @@
             {{- '</function>\n</tool_call>' }}
         {%- endfor %}
         {{- '<|im_end|>\n' }}
-    {%- elif message.role == "user" or message.role == "system" or message.role == "assistant" %}
-        {{- '<|im_start|>' + message.role }}
-        {%- if message.role == "assistant" and (reasoning_text or message.reasoning_content is defined) %}
+    {%- elif role == "user" or role == "system" or role == "assistant" %}
+        {{- '<|im_start|>' + role }}
+        {%- if role == "assistant" and (reasoning_text or message.reasoning_content is defined) %}
             {%- if reasoning_text -%}
                 {{ '\n<think>' + reasoning_text.strip() + '</think>' }}
             {%- else -%}
@@ -125,7 +127,7 @@
             {{- '\n' + message.content }}
         {%- endif %}
         {{- '<|im_end|>' + '\n' }}
-    {%- elif message.role == "tool" %}
+    {%- elif role == "tool" %}
         {%- if loop.previtem and loop.previtem.role != "tool" %}
             {{- '<|im_start|>user\n' }}
         {%- endif %}
@@ -138,7 +140,7 @@
             {{- '<|im_end|>\n' }}
         {%- endif %}
     {%- else %}
-        {{- '<|im_start|>' + message.role + '\n' + message.content + '<|im_end|>\n' }}
+        {{- '<|im_start|>' + role + '\n' + message.content + '<|im_end|>\n' }}
     {%- endif %}
 {%- endfor %}
 {%- if add_generation_prompt %}
