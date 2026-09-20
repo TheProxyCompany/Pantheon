@@ -308,13 +308,17 @@
                             {%- for part in tool_body -%}
                                 {%- if part['type'] == 'text' -%}
                                     {%- set ns_txt.s = ns_txt.s + (part['text'] | default('')) -%}
-                                {%- elif part['type'] == 'image' -%}
-                                    {%- set ns_txt.s = ns_txt.s + '<|image|>' -%}
-                                {%- elif part['type'] == 'audio' -%}
-                                    {%- set ns_txt.s = ns_txt.s + '<|audio|>' -%}
                                 {%- endif -%}
                             {%- endfor -%}
                             {{- format_tool_response_block(ns_tname.name, ns_txt.s) -}}
+                            {#- What a tool returns besides text follows the response block. -#}
+                            {%- for part in tool_body -%}
+                                {%- if part['type'] == 'image' -%}
+                                    {{- image_part() -}}
+                                {%- elif part['type'] == 'audio' -%}
+                                    {{- audio_part() -}}
+                                {%- endif -%}
+                            {%- endfor -%}
                         {%- else -%}
                             {{- format_tool_response_block(ns_tname.name, tool_body) -}}
                         {%- endif -%}
