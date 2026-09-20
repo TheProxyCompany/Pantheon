@@ -19,6 +19,10 @@
 {%- macro image_part() -%}
     {{- capabilities.vision.tokens.start + capabilities.vision.tokens.placeholder + capabilities.vision.tokens.end -}}
 {%- endmacro -%}
+{#- Audio follows the same rule. -#}
+{%- macro audio_part() -%}
+    {{- capabilities.audio.tokens.start + capabilities.audio.tokens.placeholder + capabilities.audio.tokens.end -}}
+{%- endmacro -%}
 {%- macro format_parameters(properties, required) -%}
     {%- set standard_keys = ['description', 'type', 'properties', 'required', 'nullable'] -%}
     {%- set ns = namespace(found_first=false) -%}
@@ -338,7 +342,7 @@
                         {{- image_part() -}}
                         {%- set ns.prev_message_type = 'image' -%}
                     {%- elif item['type'] == 'audio' -%}
-                        {{- '<|audio|>' -}}
+                        {{- audio_part() -}}
                         {%- set ns.prev_message_type = 'audio' -%}
                     {%- elif item['type'] == 'video' -%}
                         {{- '<|video|>' -}}
