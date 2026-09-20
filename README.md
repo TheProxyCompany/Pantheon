@@ -169,6 +169,32 @@ the system turn) re-renders the head in the next request's mode; the replayed tu
 keeps the generation prompt it answered. See `nemotron_h/chat_template.jinja` for the
 shortest complete example.
 
+## Images and audio: what the template has to write itself
+
+A Hugging Face chat template usually writes one placeholder per image or audio clip and
+leaves the rest to the model's *processor*, which replaces the placeholder with the soft
+tokens and whatever the model was trained to see around them. Orchard has no processor
+step. The client finds the placeholder in the rendered prompt, cuts the text there, and
+sends the media as its own layout segment; the engine tokenizes each piece of text on its
+own and puts the soft tokens in between. So everything the processor would add besides
+the soft tokens has to be text in the template:
+
+| Model | The processor expands the placeholder to | The template writes |
+|-------|------------------------------------------|---------------------|
+| Gemma 4 | `<\|image>` + soft tokens + `<image\|>` | `<\|image><\|image\|><image\|>` (the middle token is the placeholder the client removes) |
+| Gemma 3 | `\n\n<start_of_image>` + soft tokens + `<end_of_image>\n\n` | the same text without the soft tokens (`<start_of_image>` is the placeholder and stays) |
+
+When porting a template, read the processor's `replace_image_token` /
+`replace_audio_token` (or its equivalent) as well as the Jinja, and compare token ids with
+`processor.apply_chat_template(..., tokenize=True)` for a prompt with one and with two
+images.
+
+Declare a placeholder that must not reach the engine as text under the capability's
+`placeholders` map (`vision.placeholders.image`, `audio.placeholders.audio`), or as
+`vision.tokens.placeholder` for images. The clients only remove what is declared there;
+an undeclared placeholder stays in the prompt text while the layout counts the text
+without it, and the engine refuses the request.
+
 ## SDK Integration
 
 | SDK | Template Engine | Submodule Path |
