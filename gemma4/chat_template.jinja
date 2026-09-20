@@ -11,6 +11,14 @@
         {{- capabilities.thinking.tokens.suppress | default('') -}}
     {%- endif -%}
 {%- endmacro -%}
+{#- An image as the model was trained to see it: its begin token, its soft tokens, its end
+    token, and nothing else around them. The Hugging Face processor adds the two delimiters
+    when it expands the placeholder; here the client cuts the prompt at the placeholder and
+    the engine puts the soft tokens there, so the delimiters are written as text: the last
+    token before the image and the first one after it. -#}
+{%- macro image_part() -%}
+    {{- capabilities.vision.tokens.start + capabilities.vision.tokens.placeholder + capabilities.vision.tokens.end -}}
+{%- endmacro -%}
 {%- macro format_parameters(properties, required) -%}
     {%- set standard_keys = ['description', 'type', 'properties', 'required', 'nullable'] -%}
     {%- set ns = namespace(found_first=false) -%}
@@ -327,7 +335,7 @@
                             {{- item['text'] | trim -}}
                         {%- endif -%}
                     {%- elif item['type'] == 'image' -%}
-                        {{- '<|image|>' -}}
+                        {{- image_part() -}}
                         {%- set ns.prev_message_type = 'image' -%}
                     {%- elif item['type'] == 'audio' -%}
                         {{- '<|audio|>' -}}
