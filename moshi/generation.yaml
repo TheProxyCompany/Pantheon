@@ -1,0 +1,15 @@
+default:
+  temperature: 0.8
+  top_k: 250
+  audio_temperature: 0.8
+  audio_top_k: 250
+recommended:
+  temperature: 0.8
+  top_k: 250
+  audio_temperature: 0.8
+  audio_top_k: 250
+deterministic:
+  temperature: 0.0
+  top_k: 1
+  audio_temperature: 0.0
+  audio_top_k: 1
