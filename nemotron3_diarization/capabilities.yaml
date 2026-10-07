@@ -1,0 +1,29 @@
+# NVIDIA Nemotron 3, not the older four-speaker Sortformer checkpoint.
+modalities: [audio]
+features: [streaming, speaker_diarization, overlapping_speech]
+architecture: nemotron3_diarization
+backend: nemo_speech_cpp
+
+audio:
+  native: true
+  sample_rate: 16000
+  channels: 1
+  format: pcm_f32le
+
+diarization:
+  sample_rate: 16000
+  speakers: 8
+  output_frame_seconds: 0.01
+  encoder_frame_seconds: 0.08
+  chunk_frames: 6
+  right_context_frames: 2
+  left_context_frames: 0
+  fifo_frames: 264
+  speaker_cache_frames: 264
+  update_period_frames: 222
+  model_id: nvidia/Nemotron-3-Diarization
+  revision: f667ed73aee57d40cc39428eb768b4fd87a0a29e
+  model_file: Nemotron-3-Diarization.q8_0.gguf
+  size_bytes: 107012128
+  sha256: 08456d9e22cd9a323c0364d98375f3746d6e68507ebb705cd46438c534c7a3a1
+  runtime_revision: b809bbb467fb2da2be0042fff5ef1f503828c9cf
