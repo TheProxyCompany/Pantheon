@@ -1,7 +1,8 @@
 # NVIDIA Nemotron 3 Diarization
 
-This is the September 23, 2026 eight-speaker model. Orchard runs the pinned
-NVIDIA NeMo-Speech.cpp implementation with its actual AOSC speaker cache and
+This is the September 23, 2026 eight-speaker model. PIE owns the pinned
+NVIDIA NeMo-Speech.cpp runtime, model and streaming state; Orchard transports
+audio and speaker events over IPC. The runtime uses its actual AOSC speaker cache and
 FIFO state, using the official SHA-256-verified Q8 GGUF checkpoint. It does
 not substitute the older four-speaker Sortformer model.
 

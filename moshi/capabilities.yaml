@@ -1,8 +1,8 @@
-# Native Orchard Moshi/Mimi backend, implemented in Rust with Kyutai's Candle kernels.
+# Native PIE Moshi/Mimi/ARC backend; Orchard transports audio and reference updates.
 modalities: [audio, text]
 features: [duplex_audio, streaming, speech_conditioning]
 architecture: moshi
-backend: candle
+backend: pie
 context_length: 3000
 
 audio:
