@@ -11,8 +11,7 @@ The `duplex.checkpoints` revisions fix the three model assets used together.
 Moshi generates its own speech and time-aligned text. That text must never be
 presented as a transcript of the microphone. A separate local language model
 can ground the speech stream with asynchronous reference updates while the
-microphone stream continues. Forced speech is available only when the engine's
-ready event advertises it. A new interruption epoch invalidates queued audio.
+microphone stream continues. A new interruption epoch invalidates queued audio.
 
 Code: https://github.com/kyutai-labs/moshi (MIT/Apache-2.0).
 Weights: https://huggingface.co/kyutai/moshiko-candle-q8 (CC-BY-4.0).
