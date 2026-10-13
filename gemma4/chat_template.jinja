@@ -3,6 +3,26 @@
 {%- set enable_thinking = reasoning if reasoning is defined else false -%}
 {%- set text_config = model_config.get('text_config', {}) if model_config is defined else {} -%}
 {%- set is_e2b_or_e4b = (not text_config.get('num_experts')) and text_config.get('hidden_size') in [1536, 2560] -%}
+{#- What the model sees just before it generates, for the turn being asked for and for
+    every earlier turn alike. -#}
+{%- macro generation_prompt(thinking) -%}
+    {{- '<|turn>model\n' -}}
+    {%- if not thinking and not is_e2b_or_e4b -%}
+        {{- capabilities.thinking.tokens.suppress | default('') -}}
+    {%- endif -%}
+{%- endmacro -%}
+{#- An image as the model was trained to see it: its begin token, its soft tokens, its end
+    token, and nothing else around them. The Hugging Face processor adds the two delimiters
+    when it expands the placeholder; here the client cuts the prompt at the placeholder and
+    the engine puts the soft tokens there, so the delimiters are written as text: the last
+    token before the image and the first one after it. -#}
+{%- macro image_part() -%}
+    {{- capabilities.vision.tokens.start + capabilities.vision.tokens.placeholder + capabilities.vision.tokens.end -}}
+{%- endmacro -%}
+{#- Audio follows the same rule. -#}
+{%- macro audio_part() -%}
+    {{- capabilities.audio.tokens.start + capabilities.audio.tokens.placeholder + capabilities.audio.tokens.end -}}
+{%- endmacro -%}
 {%- macro format_parameters(properties, required) -%}
     {%- set standard_keys = ['description', 'type', 'properties', 'required', 'nullable'] -%}
     {%- set ns = namespace(found_first=false) -%}
@@ -209,14 +229,9 @@
     {%- endif -%}
     {{- '<turn|>\n' -}}
 {%- endif %}
-{%- set ns_turn = namespace(last_user_idx=-1) -%}
-{%- for i in range(loop_messages | length) -%}
-    {%- if loop_messages[i]['role'] == 'user' -%}
-        {%- set ns_turn.last_user_idx = i -%}
-    {%- endif -%}
-{%- endfor -%}
 {%- for message in loop_messages -%}
     {%- if message['role'] != 'tool' -%}
+    {%- set asked_mid_turn = ns.prev_message_type == 'tool_response' or ns.prev_message_type == 'tool_call' -%}
     {%- set ns.prev_message_type = None -%}
     {%- set role = 'model' if message['role'] in ['assistant', 'agent', 'model'] else message['role'] -%}
     {%- set prev_nt = namespace(role=None, found=false) -%}
@@ -231,15 +246,23 @@
         {%- endfor -%}
     {%- endif -%}
     {%- set continue_same_model_turn = (role == 'model' and prev_nt.role == 'model') -%}
-    {%- if not continue_same_model_turn -%}
+    {#- A reply this model generated: `generated` stands for its exact token ids. -#}
+    {%- set replayed = role == 'model' and message.generated is defined -%}
+    {%- if replayed -%}
+        {%- if not asked_mid_turn -%}
+            {{- generation_prompt(message.generated_thinking) -}}
+        {%- endif -%}
+        {{- message.generated -}}
+    {%- elif not continue_same_model_turn -%}
         {{- '<|turn>' + role + '\n' }}
     {%- endif -%}
-    {%- set thinking_text = message.get('reasoning') or message.get('reasoning_content') -%}
-    {%- if thinking_text and loop.index0 > ns_turn.last_user_idx and message.get('tool_calls') -%}
+    {#- Reasoning stays in the conversation on every turn. -#}
+    {%- set thinking_text = message.get('reasoning_content') or message.get('reasoning') or (message.get('thinking') if message.get('thinking') is string else none) -%}
+    {%- if thinking_text and not replayed -%}
         {{- '<|channel>thought\n' + thinking_text + '\n<channel|>' -}}
     {%- endif -%}
             {%- if message['tool_calls'] -%}
-                {%- for tool_call in message['tool_calls'] -%}
+                {%- for tool_call in message['tool_calls'] if not replayed -%}
                     {%- set function = tool_call['function'] -%}
                     {{- '<|tool_call>call:' + function['name'] + '{' -}}
                     {%- if function['arguments'] is mapping -%}
@@ -285,13 +308,17 @@
                             {%- for part in tool_body -%}
                                 {%- if part['type'] == 'text' -%}
                                     {%- set ns_txt.s = ns_txt.s + (part['text'] | default('')) -%}
-                                {%- elif part['type'] == 'image' -%}
-                                    {%- set ns_txt.s = ns_txt.s + '<|image|>' -%}
-                                {%- elif part['type'] == 'audio' -%}
-                                    {%- set ns_txt.s = ns_txt.s + '<|audio|>' -%}
                                 {%- endif -%}
                             {%- endfor -%}
                             {{- format_tool_response_block(ns_tname.name, ns_txt.s) -}}
+                            {#- What a tool returns besides text follows the response block. -#}
+                            {%- for part in tool_body -%}
+                                {%- if part['type'] == 'image' -%}
+                                    {{- image_part() -}}
+                                {%- elif part['type'] == 'audio' -%}
+                                    {{- audio_part() -}}
+                                {%- endif -%}
+                            {%- endfor -%}
                         {%- else -%}
                             {{- format_tool_response_block(ns_tname.name, tool_body) -}}
                         {%- endif -%}
@@ -300,7 +327,8 @@
                     {%- endif -%}
                 {%- endfor -%}
             {%- endif -%}
-            {%- if message['content'] is string -%}
+            {%- if replayed -%}
+            {%- elif message['content'] is string -%}
                 {%- if role == 'model' -%}
                     {{- strip_thinking(message['content']) -}}
                 {%- else -%}
@@ -315,10 +343,10 @@
                             {{- item['text'] | trim -}}
                         {%- endif -%}
                     {%- elif item['type'] == 'image' -%}
-                        {{- '<|image|>' -}}
+                        {{- image_part() -}}
                         {%- set ns.prev_message_type = 'image' -%}
                     {%- elif item['type'] == 'audio' -%}
-                        {{- '<|audio|>' -}}
+                        {{- audio_part() -}}
                         {%- set ns.prev_message_type = 'audio' -%}
                     {%- elif item['type'] == 'video' -%}
                         {{- '<|video|>' -}}
@@ -328,17 +356,14 @@
             {%- endif -%}
         {%- if ns.prev_message_type == 'tool_call' and not ns_tr_out.flag -%}
             {{- '<|tool_response>' -}}
-        {%- elif not (ns_tr_out.flag and not message.get('content')) -%}
+        {%- elif not (ns_tr_out.flag and (replayed or not message.get('content'))) -%}
             {{- '<turn|>\n' -}}
         {%- endif -%}
     {%- endif -%}
 {%- endfor -%}
 {%- if add_generation_prompt -%}
     {%- if ns.prev_message_type != 'tool_response' and ns.prev_message_type != 'tool_call' -%}
-        {{- '<|turn>model\n' -}}
-        {%- if not enable_thinking and not is_e2b_or_e4b -%}
-            {{- capabilities.thinking.tokens.suppress | default('') -}}
-        {%- endif -%}
+        {{- generation_prompt(enable_thinking) -}}
     {%- endif -%}
 {%- endif -%}
 {%- if prefill is not none -%}

@@ -1,0 +1,41 @@
+{# Qwen2.5's ChatML format, with Orchard's exact generated-token replay. #}
+{%- set messages = messages if messages is defined else interactions -%}
+{%- set system = messages[0].content if messages[0].role == 'system' else 'You are Qwen, created by Alibaba Cloud. You are a helpful assistant.' -%}
+{{- '<|im_start|>system\n' + system -}}
+{%- if tools -%}
+    {{- '\n\n# Tools\n\nYou may call one or more functions to assist with the user query.\n\nYou are provided with function signatures within <tools></tools> XML tags:\n<tools>' -}}
+    {%- for tool in tools -%}
+        {{- '\n' + (tool | tojson) -}}
+    {%- endfor -%}
+    {{- '\n</tools>\n\nFor each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:\n<tool_call>\n{"name": <function-name>, "arguments": <args-json-object>}\n</tool_call>' -}}
+{%- endif -%}
+{{- '<|im_end|>\n' -}}
+{%- for message in messages -%}
+    {%- set role = 'assistant' if message.role == 'agent' else message.role -%}
+    {%- if role == 'assistant' and message.generated is defined -%}
+        {{- '<|im_start|>assistant\n' + message.generated + '<|im_end|>\n' -}}
+    {%- elif role == 'assistant' and message.tool_calls -%}
+        {{- '<|im_start|>assistant' -}}
+        {%- if message.content -%}
+            {{- '\n' + message.content -}}
+        {%- endif -%}
+        {%- for call in message.tool_calls -%}
+            {%- set call = call.function if call.function is defined else call -%}
+            {{- '\n<tool_call>\n{"name": "' + call.name + '", "arguments": ' + (call.arguments | tojson) + '}\n</tool_call>' -}}
+        {%- endfor -%}
+        {{- '<|im_end|>\n' -}}
+    {%- elif role == 'tool' -%}
+        {%- if loop.first or messages[loop.index0 - 1].role != 'tool' -%}
+            {{- '<|im_start|>user' -}}
+        {%- endif -%}
+        {{- '\n<tool_response>\n' + message.content + '\n</tool_response>' -}}
+        {%- if loop.last or messages[loop.index0 + 1].role != 'tool' -%}
+            {{- '<|im_end|>\n' -}}
+        {%- endif -%}
+    {%- elif role != 'system' or not loop.first -%}
+        {{- '<|im_start|>' + role + '\n' + message.content + '<|im_end|>\n' -}}
+    {%- endif -%}
+{%- endfor -%}
+{%- if add_generation_prompt -%}
+    {{- '<|im_start|>assistant\n' -}}
+{%- endif -%}

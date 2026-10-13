@@ -1,0 +1,9 @@
+default:
+  temperature: 0.0
+  max_new_tokens: 0
+recommended:
+  temperature: 0.0
+  max_new_tokens: 0
+deterministic:
+  temperature: 0.0
+  max_new_tokens: 0

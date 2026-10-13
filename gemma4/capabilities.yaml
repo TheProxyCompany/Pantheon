@@ -28,6 +28,8 @@ vision:
 
 audio:
   native: true
+  placeholders:
+    audio: "<|audio|>"
   tokens:
     start: "<|audio>"
     end: "<audio|>"

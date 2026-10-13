@@ -7,6 +7,12 @@
     {%- set messages = messages[1:] -%}
 {%- endif -%}
 
+{#- What the model sees just before it generates, for the turn being asked for and for
+    every earlier turn alike. -#}
+{%- macro generation_prompt(thinking) -%}
+    {{- "<|im_start|>assistant\n" + ("<think>\n" if thinking else "<think></think>") -}}
+{%- endmacro -%}
+
 {%- macro render_content(content) -%}
     {%- if content is string -%}
         {{- content -}}
@@ -47,8 +53,17 @@
     {%- set role = "assistant" if message.role == "agent" else message.role -%}
     {%- if role == "user" -%}
         {{- "<|im_start|>user\n" + render_content(message.content) + "<|im_end|>\n" -}}
+    {%- elif role == "assistant" and message.generated is defined -%}
+        {#- A reply this model generated: `generated` stands for its exact token ids. -#}
+        {{- generation_prompt(message.generated_thinking) + message.generated + "<|im_end|>\n" -}}
     {%- elif role == "assistant" -%}
-        {{- "<|im_start|>assistant\n" + render_content(message.content) -}}
+        {#- Reasoning stays in the conversation on every turn. -#}
+        {%- set reasoning_text = message.reasoning_content or message.reasoning or (message.thinking if message.thinking is string else none) -%}
+        {%- if reasoning_text -%}
+            {{- generation_prompt(true) + (reasoning_text | trim) + "\n</think>\n\n" + render_content(message.content) -}}
+        {%- else -%}
+            {{- generation_prompt(false) + render_content(message.content) -}}
+        {%- endif -%}
         {%- if message.tool_calls -%}
             {%- for tool_call in message.tool_calls -%}
                 {%- set function = tool_call.function if tool_call.function is defined else tool_call -%}
@@ -69,12 +84,7 @@
     {%- endif -%}
 {%- endfor -%}
 {%- if add_generation_prompt -%}
-    {{- "<|im_start|>assistant\n" -}}
-    {%- if enable_thinking -%}
-        {{- "<think>\n" -}}
-    {%- else -%}
-        {{- "<think></think>" -}}
-    {%- endif -%}
+    {{- generation_prompt(enable_thinking) -}}
 {%- endif -%}
 {%- if prefill is not none -%}
     {{- prefill -}}

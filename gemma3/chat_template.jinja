@@ -23,6 +23,27 @@
     {%- endif -%}
 {%- endmacro -%}
 {# ------------------------------------------------------------------------ #}
+{# Macro: generation_prompt                                                 #}
+{# What the model sees just before it generates, for the turn being asked   #}
+{# for and for every earlier turn alike. Gemma 3 has no thinking mode, so   #}
+{# it is the same with thinking on or off.                                  #}
+{# ------------------------------------------------------------------------ #}
+{%- macro generation_prompt(thinking) -%}
+    {%- if roles is not none and roles.agent is not none -%}
+        {{- roles.agent.role_start_tag + roles.agent.role_name + roles.agent.role_end_tag -}}
+    {%- endif -%}
+{%- endmacro -%}
+{# ------------------------------------------------------------------------ #}
+{# Macro: image_part                                                        #}
+{# An image as the model was trained to see it. The Hugging Face processor   #}
+{# replaces <start_of_image> with a blank line, <start_of_image>, the soft   #}
+{# tokens, <end_of_image> and another blank line. The engine puts the soft   #}
+{# tokens between the two delimiters; the blank lines have to be text.       #}
+{# ------------------------------------------------------------------------ #}
+{%- macro image_part() -%}
+    {{- "\n\n" + capabilities.vision.tokens.start + capabilities.vision.tokens.end + "\n\n" -}}
+{%- endmacro -%}
+{# ------------------------------------------------------------------------ #}
 {# Macro: render_content                                                    #}
 {# ------------------------------------------------------------------------ #}
 {%- macro render_content(content) -%}
@@ -31,7 +52,7 @@
     {%- else -%}
         {%- for item in content -%}
             {%- if item['type'] == 'image' -%}
-                {{- capabilities.vision.tokens.start }}{{ capabilities.vision.tokens.end -}}
+                {{- image_part() -}}
             {%- else -%}
                 {{- item | safe -}}
             {%- endif -%}
@@ -43,7 +64,11 @@
 {# Renders individual interactions using model-specific control tokens.     #}
 {# ------------------------------------------------------------------------ #}
 {%- macro render_interaction(interaction) -%}
-    {{- render_role_header(interaction['role']) -}}
+    {%- if interaction['role'] in ['agent', 'assistant'] -%}
+        {{- generation_prompt(false) -}}
+    {%- else -%}
+        {{- render_role_header(interaction['role']) -}}
+    {%- endif -%}
     {{- render_content(interaction['content']) -}}
     {%- if end_of_message is not none -%}
         {{ end_of_message }}
@@ -55,7 +80,7 @@
 {# Macro: render_tool_call                                                  #}
 {# ------------------------------------------------------------------------ #}
 {%- macro render_tool_call(interaction) -%}
-    {{- render_role_header('agent') -}}
+    {{- generation_prompt(false) -}}
     {%- if interaction['content'] is string and interaction['content'] -%}
         {{- interaction['content'] | safe + "\n" -}}
     {%- endif %}
@@ -110,7 +135,7 @@
         {%- else -%}
             {%- for content in interactions[0]['content'] -%}
                 {%- if content['type'] == 'image' -%}
-                    {{- capabilities.vision.tokens.start }}{{ capabilities.vision.tokens.end -}}
+                    {{- image_part() -}}
                 {%- else -%}
                     {{- content | safe -}}
                 {%- endif -%}
@@ -140,6 +165,9 @@
 {%- for interaction in interactions -%}
     {%- if has_system and loop.first -%}
         {# Already rendered system message above #}
+    {%- elif interaction['role'] in ['agent', 'assistant'] and interaction.generated is defined -%}
+        {# A reply this model generated: `generated` stands for its exact token ids. #}
+        {{- generation_prompt(interaction.generated_thinking) + interaction.generated + (end_of_message if end_of_message is not none else end_of_sequence) -}}
     {%- elif interaction.tool_calls is defined and interaction.tool_calls -%}
         {{- render_tool_call(interaction) -}}
     {%- elif interaction['role'] == 'tool' or (interaction.tool_call_id is defined and interaction.tool_call_id) -%}
@@ -149,9 +177,7 @@
     {%- endif -%}
 {%- endfor -%}
 {%- if add_generation_prompt -%}
-    {%- if roles is not none and roles.agent is not none -%}
-        {{- roles.agent.role_start_tag + roles.agent.role_name + roles.agent.role_end_tag -}}
-    {%- endif -%}
+    {{- generation_prompt(reasoning) -}}
 {%- endif -%}
 {%- if prefill is not none -%}
     {{- prefill -}}
