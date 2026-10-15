@@ -1,0 +1,29 @@
+{
+  "template_type": "qwen3_asr",
+  "model_types": ["qwen3_asr"],
+  "begin_of_text": "",
+  "end_of_message": "<|im_end|>\n",
+  "end_of_sequence": "<|im_end|>",
+  "roles": {
+    "system": {
+      "role_name": "system",
+      "role_start_tag": "<|im_start|>",
+      "role_end_tag": "\n"
+    },
+    "agent": {
+      "role_name": "assistant",
+      "role_start_tag": "<|im_start|>",
+      "role_end_tag": "\n"
+    },
+    "user": {
+      "role_name": "user",
+      "role_start_tag": "<|im_start|>",
+      "role_end_tag": "\n"
+    },
+    "tool": {
+      "role_name": "tool",
+      "role_start_tag": "<|im_start|>",
+      "role_end_tag": "\n"
+    }
+  }
+}

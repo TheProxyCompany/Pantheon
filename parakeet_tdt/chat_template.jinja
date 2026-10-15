@@ -1,0 +1,6 @@
+{%- set messages = messages if messages is defined else interactions -%}
+{%- for message in messages -%}
+  {%- if message.content is string -%}
+    {{- message.content -}}
+  {%- endif -%}
+{%- endfor -%}

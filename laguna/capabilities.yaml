@@ -1,0 +1,49 @@
+# poolside Laguna 2.1 (XS / S) capabilities.
+#
+# Sources: tokenizer_config.json (added_tokens_decoder), chat_template.jinja,
+# generation_config.json, and the model card README from poolside/Laguna-XS-2.1.
+#
+# Token atomicity: only <think> (18), </think> (19), <assistant> (23),
+# </assistant> (24), <tool_call> (25), </tool_call> (26) are single vocab
+# tokens. <system>, <user>, <tool_response>, <arg_key>, <arg_value> and their
+# closers are plain text tokenized by BPE.
+
+modalities:
+  - text
+
+# Laguna XS 2.1 context: 262144 (max_position_embeddings). Laguna S 2.1: 1048576.
+context_length: 262144
+
+features:
+  - thinking
+  - tool_use
+  - streaming
+
+# Thinking is toggled by the enable_thinking template kwarg. The template's own
+# default is false, but generation_config.json ships
+# default_chat_template_kwargs {"enable_thinking": true} — thinking on is the
+# intended default. Thinking off renders a bare </think> (no opening tag).
+# The model reasons before and between tool calls (interleaved thinking);
+# replay prior reasoning via message.reasoning_content in multi-step tool loops
+# or the model may stop generating reasoning.
+thinking:
+  native: true
+  tokens:
+    start: "<think>"
+    end: "</think>"
+
+# Tool calls render as:
+#   <tool_call>{name}<arg_key>{k}</arg_key><arg_value>{v}</arg_value>...</tool_call>
+# String argument values are raw; non-string values are JSON. Multiple calls
+# concatenate back-to-back, after content, before </assistant>. No newline
+# between <tool_call> and the function name.
+tool_calling:
+  native: true
+  formats:
+    - name: xml
+      tokens:
+        start: "<tool_call>"
+        end: "</tool_call>"
+  result_tokens:
+    start: "<tool_response>"
+    end: "</tool_response>"

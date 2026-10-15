@@ -1,3 +1,15 @@
+# Granite-Switch 4.1 generation settings.
+#
+# Source of truth: IBM Granite-Switch-4.1 model card
+# (https://huggingface.co/ibm-granite/granite-switch-4.1-3b-preview):
+#   The shipped generation_config.json declares no sampling params and the official usage
+#   example runs plain greedy decoding (model.generate(...) with no sampling args). IBM
+#   publishes no recommended temperature/top_p/top_k for this model.
+#
+# (Prior temperature: 0.7 / top_p: 0.9 were invented placeholders with no IBM source.)
+# All lanes are greedy because greedy is the only author-backed behavior; inventing
+# sampling numbers here would itself be fabrication.
+
 tokens:
   bos_token_id: 100257
   pad_token_id: 100256
@@ -5,16 +17,16 @@ tokens:
     - 100257
 
 default:
-  do_sample: true
-  temperature: 0.7
-  top_p: 0.9
+  do_sample: false
+  temperature: 0.0
+  top_p: 1.0
   top_k: -1
   min_p: 0.0
 
 recommended:
-  do_sample: true
-  temperature: 0.7
-  top_p: 0.9
+  do_sample: false
+  temperature: 0.0
+  top_p: 1.0
   top_k: -1
   min_p: 0.0
 

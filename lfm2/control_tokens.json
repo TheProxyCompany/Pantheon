@@ -1,6 +1,6 @@
 {
     "template_type": "lfm2",
-    "model_types": ["lfm2", "lfm2_moe"],
+    "model_types": ["lfm2"],
     "begin_of_text": "<|startoftext|>",
     "end_of_message": "<|im_end|>\n",
     "end_of_sequence": "<|im_end|>",

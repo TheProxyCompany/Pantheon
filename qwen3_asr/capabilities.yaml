@@ -1,0 +1,26 @@
+modalities:
+  - audio
+  - text
+
+features:
+  - speech_to_text
+  - transcription
+
+context_length: 0
+
+speech_to_text:
+  native: true
+  tasks:
+    - transcribe
+  input:
+    type: audio
+    sample_rate: 16000
+    encoding: float32_pcm
+  output:
+    type: text
+
+audio:
+  native: true
+  input:
+    sample_rate: 16000
+    encoding: float32_pcm

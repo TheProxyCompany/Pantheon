@@ -10,7 +10,6 @@ context_length: 131072
 
 thinking:
   native: true
-  default: true
   tokens:
     start: "<think>"
     end: "</think>"

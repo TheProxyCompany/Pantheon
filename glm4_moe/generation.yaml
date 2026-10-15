@@ -1,3 +1,13 @@
+# GLM-4.5/4.6 MoE generation settings.
+#
+# Source of truth: GLM model card "Recommended Evaluation Parameters" (zai-org):
+#   "For general evaluations, we recommend a sampling temperature of 1.0."
+#   Code-related tasks: top_p=0.95, top_k=40. GLM-4.6 generation_config ships temperature 1.0.
+#
+# (Prior temperature: 0.6 / top_p: 0.95 / top_k: 20 were Qwen3's default numbers, copy-pasted —
+# not a GLM source.) NOTE: this profile's control_tokens use ChatML tags rather than GLM's
+# native <|user|>/<|observation|> roles — a separate (non-sampling) correctness concern.
+
 tokens:
   pad_token_id: 151329
   eos_token_ids:
@@ -6,19 +16,17 @@ tokens:
 
 default:
   do_sample: true
-  temperature: 0.6
-  top_p: 0.95
-  top_k: 20
+  temperature: 1.0
+  top_p: 1.0
+  top_k: -1
   min_p: 0.0
 
 recommended:
   do_sample: true
-  temperature: 0.6
+  temperature: 1.0
   top_p: 0.95
-  top_k: 20
+  top_k: 40
   min_p: 0.0
-  presence_penalty: 0.0
-  repetition_penalty: 1.0
 
 deterministic:
   do_sample: false

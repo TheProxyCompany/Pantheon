@@ -283,8 +283,12 @@
                         {%- elif tool_body is sequence and tool_body is not string -%}
                             {%- set ns_txt = namespace(s='') -%}
                             {%- for part in tool_body -%}
-                                {%- if part.get('type') == 'text' -%}
-                                    {%- set ns_txt.s = ns_txt.s + (part.get('text') | default('')) -%}
+                                {%- if part['type'] == 'text' -%}
+                                    {%- set ns_txt.s = ns_txt.s + (part['text'] | default('')) -%}
+                                {%- elif part['type'] == 'image' -%}
+                                    {%- set ns_txt.s = ns_txt.s + '<|image|>' -%}
+                                {%- elif part['type'] == 'audio' -%}
+                                    {%- set ns_txt.s = ns_txt.s + '<|audio|>' -%}
                                 {%- endif -%}
                             {%- endfor -%}
                             {{- format_tool_response_block(ns_tname.name, ns_txt.s) -}}

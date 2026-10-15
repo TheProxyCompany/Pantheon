@@ -1,0 +1,49 @@
+modalities:
+  - text
+
+features:
+  - thinking
+  - tool_use
+  - structured_output
+  - streaming
+
+context_length: 131072
+
+thinking:
+  native: true
+  tokens:
+    start: "<|channel|>analysis<|message|>"
+    end: "<|end|>"
+
+output_framing:
+  markers:
+    start: "<|start|>"
+    channel: "<|channel|>"
+    message: "<|message|>"
+    constrain: "<|constrain|>"
+    call: "<|call|>"
+    end: "<|end|>"
+    return: "<|return|>"
+  channels:
+    analysis: "analysis"
+    commentary: "commentary"
+    final: "final"
+
+tool_calling:
+  native: true
+  formats:
+    - name: harmony
+      tokens:
+        start: "<|start|>assistant"
+        inline_start: ""
+        channel: "commentary"
+        recipient_prefix: " to=functions."
+        constraint_prefix: " "
+        constraint: "json"
+        message: "<|message|>"
+        end: "<|call|>"
+  result_tokens:
+    start: "<|start|>functions."
+    channel: "commentary"
+    message: "<|message|>"
+    end: "<|end|>"

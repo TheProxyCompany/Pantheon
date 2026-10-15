@@ -1,0 +1,37 @@
+# poolside Laguna 2.1 generation settings.
+#
+# tokens + default: generation_config.json from poolside/Laguna-XS-2.1
+# (do_sample true, temperature 1.0, top_p 1.0, min_p 0.0, max_new_tokens 32768;
+# no top_k). Note 〈|EOS|〉 (2) doubles as BOS; </assistant> (24) is the
+# practical stop token.
+#
+# recommended: model card README — all Laguna XS 2.1 benchmarking used
+# temperature=1.0, top_k=20, top_p=1, thinking mode enabled.
+
+tokens:
+  bos_token_id: 2
+  pad_token_id: 9
+  eos_token_ids:
+    - 2
+    - 24
+
+default:
+  do_sample: true
+  temperature: 1.0
+  top_p: 1.0
+  top_k: -1
+  min_p: 0.0
+
+recommended:
+  do_sample: true
+  temperature: 1.0
+  top_p: 1.0
+  top_k: 20
+  min_p: 0.0
+
+deterministic:
+  do_sample: false
+  temperature: 0.0
+  top_p: 1.0
+  top_k: -1
+  min_p: 0.0

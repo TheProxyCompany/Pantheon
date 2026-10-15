@@ -1,0 +1,29 @@
+{
+    "template_type": "laguna",
+    "model_types": ["laguna"],
+    "begin_of_text": "〈|EOS|〉",
+    "end_of_message": "</assistant>\n",
+    "end_of_sequence": "</assistant>",
+    "roles": {
+        "system": {
+            "role_name": "system",
+            "role_start_tag": "<system>",
+            "role_end_tag": "</system>\n"
+        },
+        "user": {
+            "role_name": "user",
+            "role_start_tag": "<user>",
+            "role_end_tag": "</user>\n"
+        },
+        "agent": {
+            "role_name": "assistant",
+            "role_start_tag": "<assistant>",
+            "role_end_tag": "</assistant>\n"
+        },
+        "tool": {
+            "role_name": "tool",
+            "role_start_tag": "<tool_response>",
+            "role_end_tag": "</tool_response>\n"
+        }
+    }
+}
