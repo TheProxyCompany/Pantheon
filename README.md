@@ -143,6 +143,58 @@ Common sampling keys are `temperature`, `top_p`, `top_k`, `min_p`, `presence_pen
 
 7. **After merge**, update the submodule in each SDK
 
+## Earlier turns: what every chat template must do
+
+The engine reuses work between turns through a prefix cache keyed by token ids, so the
+next prompt has to start with the last prompt followed by what the model generated. Two
+rules make that hold. `orchard-rs` checks both for every profile
+(`test_a_replayed_reply_extends_the_prompt_it_answered` and
+`test_reasoning_stays_in_the_conversation_and_earlier_turns_do_not_move`), and `orchard-py`
+runs the same checks under Jinja2.
+
+1. **Define the generation prompt once**, as a macro that takes the thinking flag, and use
+   it both for the turn being asked for and for earlier turns.
+2. **A replayed turn.** When an assistant message has `generated`, the client is sending
+   the exact token ids the model produced. Render the generation prompt for
+   `message.generated_thinking`, then `message.generated`, then the turn end, and nothing
+   else: no content, no tool calls, they are inside the ids. Everything before it must
+   render as it did when that turn was the one being asked for.
+3. **A turn that arrives as text** keeps its reasoning on every later turn, in the model's
+   own format. Read `reasoning_content`, then `reasoning`, then `thinking` when it is a
+   string. Never look at later messages to decide how an earlier one renders: the
+   conversation so far must be a prefix of the longer conversation.
+
+A model that switches thinking at the head of the prompt (Gemma 4 writes `<|think|>` into
+the system turn) re-renders the head in the next request's mode; the replayed turn still
+keeps the generation prompt it answered. See `nemotron_h/chat_template.jinja` for the
+shortest complete example.
+
+## Images and audio: what the template has to write itself
+
+A Hugging Face chat template usually writes one placeholder per image or audio clip and
+leaves the rest to the model's *processor*, which replaces the placeholder with the soft
+tokens and whatever the model was trained to see around them. Orchard has no processor
+step. The client finds the placeholder in the rendered prompt, cuts the text there, and
+sends the media as its own layout segment; the engine tokenizes each piece of text on its
+own and puts the soft tokens in between. So everything the processor would add besides
+the soft tokens has to be text in the template:
+
+| Model | The processor expands the placeholder to | The template writes |
+|-------|------------------------------------------|---------------------|
+| Gemma 4 | `<\|image>` + soft tokens + `<image\|>` | `<\|image><\|image\|><image\|>` (the middle token is the placeholder the client removes) |
+| Gemma 3 | `\n\n<start_of_image>` + soft tokens + `<end_of_image>\n\n` | the same text without the soft tokens (`<start_of_image>` is the placeholder and stays) |
+
+When porting a template, read the processor's `replace_image_token` /
+`replace_audio_token` (or its equivalent) as well as the Jinja, and compare token ids with
+`processor.apply_chat_template(..., tokenize=True)` for a prompt with one and with two
+images.
+
+Declare a placeholder that must not reach the engine as text under the capability's
+`placeholders` map (`vision.placeholders.image`, `audio.placeholders.audio`), or as
+`vision.tokens.placeholder` for images. The clients only remove what is declared there;
+an undeclared placeholder stays in the prompt text while the layout counts the text
+without it, and the engine refuses the request.
+
 ## SDK Integration
 
 | SDK | Template Engine | Submodule Path |

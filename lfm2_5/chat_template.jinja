@@ -1,5 +1,10 @@
 {{- begin_of_text -}}
-{%- set preserve_thinking = preserve_thinking | default(false) -%}
+
+{#- What the model sees just before it generates, for the turn being asked for and for
+    every earlier turn alike. It is the same with thinking on or off. -#}
+{%- macro generation_prompt(thinking) -%}
+    {{- "<|im_start|>assistant\n" -}}
+{%- endmacro -%}
 
 {%- macro format_arg_value(arg_value) -%}
     {%- if arg_value is string -%}
@@ -57,7 +62,7 @@
 {%- endmacro -%}
 
 {%- set messages = messages if messages is defined else interactions -%}
-{%- set ns = namespace(system_prompt="", last_user_index=-1) -%}
+{%- set ns = namespace(system_prompt="") -%}
 {%- if messages and messages[0].role == "system" -%}
     {%- set ns.system_prompt = render_content(messages[0].content) -%}
     {%- set messages = messages[1:] -%}
@@ -76,34 +81,31 @@
     {{- "<|im_start|>system\n" + ns.system_prompt + "<|im_end|>\n" -}}
 {%- endif -%}
 {%- for message in messages -%}
-    {%- if message.role == "user" -%}
-        {%- set ns.last_user_index = loop.index0 -%}
-    {%- endif -%}
-{%- endfor -%}
-{%- for message in messages -%}
     {%- set role = "assistant" if message.role == "agent" else message.role -%}
-    {{- "<|im_start|>" + role + "\n" -}}
-    {%- if role == "assistant" -%}
-        {%- if message.thinking is defined and (preserve_thinking or loop.index0 > ns.last_user_index) -%}
-            {{- "<think>" + message.thinking + "</think>" -}}
+    {%- if role == "assistant" and message.generated is defined -%}
+        {#- A reply this model generated: `generated` stands for its exact token ids. -#}
+        {{- generation_prompt(message.generated_thinking) + message.generated + "<|im_end|>\n" -}}
+    {%- elif role == "assistant" -%}
+        {#- Reasoning stays in the conversation on every turn. -#}
+        {%- set reasoning_text = message.reasoning_content or message.reasoning or (message.thinking if message.thinking is string else none) -%}
+        {%- if reasoning_text -%}
+            {{- generation_prompt(true) + "<think>" + reasoning_text + "</think>" -}}
+        {%- else -%}
+            {{- generation_prompt(false) -}}
         {%- endif -%}
         {%- if message.content is defined -%}
-            {%- set content = render_content(message.content) -%}
-            {%- if not (preserve_thinking or loop.index0 > ns.last_user_index) and "</think>" in content -%}
-                {%- set content = content.split("</think>")[-1] | trim -%}
-            {%- endif -%}
-            {{- content -}}
+            {{- render_content(message.content) -}}
         {%- endif -%}
         {%- if message.tool_calls is defined -%}
             {{- render_tool_calls(message.tool_calls) -}}
         {%- endif -%}
         {{- "<|im_end|>\n" -}}
     {%- else -%}
-        {{- render_content(message.content) + "<|im_end|>\n" -}}
+        {{- "<|im_start|>" + role + "\n" + render_content(message.content) + "<|im_end|>\n" -}}
     {%- endif -%}
 {%- endfor -%}
 {%- if add_generation_prompt -%}
-    {{- "<|im_start|>assistant\n" -}}
+    {{- generation_prompt(reasoning) -}}
 {%- endif -%}
 {%- if prefill is not none -%}
     {{- prefill -}}

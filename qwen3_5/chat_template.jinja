@@ -43,6 +43,16 @@
         {{- raise_exception('Unexpected content type.') }}
     {%- endif %}
 {%- endmacro %}
+{#- What the model sees just before it generates, for the turn being asked for and for
+    every earlier turn alike. -#}
+{%- macro generation_prompt(thinking) %}
+    {{- '<|im_start|>assistant\n' }}
+    {%- if thinking is defined and thinking is false %}
+        {{- '<think>\n\n</think>\n\n' }}
+    {%- else %}
+        {{- '<think>\n' }}
+    {%- endif %}
+{%- endmacro %}
 {%- if not messages %}
     {{- raise_exception('No messages provided.') }}
 {%- endif %}
@@ -68,14 +78,12 @@
         {{- '<|im_start|>system\n' + content + '<|im_end|>\n' }}
     {%- endif %}
 {%- endif %}
-{%- set ns = namespace(multi_step_tool=true, last_query_index=messages|length - 1) %}
+{%- set ns = namespace(multi_step_tool=true) %}
 {%- for message in messages[::-1] %}
-    {%- set index = (messages|length - 1) - loop.index0 %}
     {%- if ns.multi_step_tool and message.role == "user" %}
         {%- set content = render_content(message.content, false)|trim %}
         {%- if not(content.startswith('<tool_response>') and content.endswith('</tool_response>')) %}
             {%- set ns.multi_step_tool = false %}
-            {%- set ns.last_query_index = index %}
         {%- endif %}
     {%- endif %}
 {%- endfor %}
@@ -91,10 +99,17 @@
         {%- endif %}
     {%- elif role == "user" %}
         {{- '<|im_start|>' + role + '\n' + content + '<|im_end|>' + '\n' }}
+    {%- elif role == "assistant" and message.generated is defined %}
+        {#- A reply this model generated: `generated` stands for its exact token ids. -#}
+        {{- generation_prompt(message.generated_thinking) + message.generated + '<|im_end|>\n' }}
     {%- elif role == "assistant" %}
         {%- set reasoning_content = '' %}
         {%- if message.reasoning_content is string %}
             {%- set reasoning_content = message.reasoning_content %}
+        {%- elif message.reasoning is string %}
+            {%- set reasoning_content = message.reasoning %}
+        {%- elif message.thinking is string %}
+            {%- set reasoning_content = message.thinking %}
         {%- else %}
             {%- if '</think>' in content %}
                 {%- set reasoning_content = content.split('</think>')[0].rstrip('\n').split('<think>')[-1].lstrip('\n') %}
@@ -102,10 +117,11 @@
             {%- endif %}
         {%- endif %}
         {%- set reasoning_content = reasoning_content|trim %}
-        {%- if loop.index0 > ns.last_query_index %}
-            {{- '<|im_start|>assistant\n<think>\n' + reasoning_content + '\n</think>\n\n' + content }}
+        {#- Reasoning stays in the conversation on every turn. -#}
+        {%- if reasoning_content %}
+            {{- generation_prompt(true) + reasoning_content + '\n</think>\n\n' + content }}
         {%- else %}
-            {{- '<|im_start|>assistant\n' + content }}
+            {{- generation_prompt(false) + content }}
         {%- endif %}
         {%- if message.tool_calls and message.tool_calls is iterable and message.tool_calls is not mapping %}
             {%- for tool_call in message.tool_calls %}
@@ -150,10 +166,5 @@
     {%- endif %}
 {%- endfor %}
 {%- if add_generation_prompt %}
-    {{- '<|im_start|>assistant\n' }}
-    {%- if enable_thinking is defined and enable_thinking is false %}
-        {{- '<think>\n\n</think>\n\n' }}
-    {%- else %}
-        {{- '<think>\n' }}
-    {%- endif %}
+    {{- generation_prompt(enable_thinking) }}
 {%- endif %}
